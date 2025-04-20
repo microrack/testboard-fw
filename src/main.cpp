@@ -6,6 +6,8 @@
 
 #include <Adafruit_MCP23X17.h>
 
+#include <DAC8552.h>
+
 const int SCL_PIN = 22;
 const int SDA_PIN = 21;
 
@@ -37,6 +39,8 @@ const int P5V_PASS = GPB + 1;
 const int M12V_PASS = GPB + 2;
 
 SPIClass SPI_DAC(HSPI);
+DAC8552 dac1(PIN_CS1, &SPI_DAC);
+DAC8552 dac2(PIN_CS2, &SPI_DAC);
 
 void setup() {
   // Инициализация сериал-порта
@@ -84,7 +88,8 @@ void setup() {
 
   // Инициализация SPI
   SPI_DAC.begin(PIN_SCK, -1, PIN_MOSI, -1); // SCK, MISO (нет), MOSI, SS (не используется)
-  SPI_DAC.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE1)); // DAC8552 использует SPI Mode 1
+  dac1.begin();
+  dac2.begin();
 
   // Вывод в консоль
   Serial.println("Hello, Microrack!");
@@ -122,10 +127,10 @@ void loop() {
   );
 
   static uint16_t value = 0;
-  writeDAC(PIN_CS1, 0, value);
-  writeDAC(PIN_CS1, 1, value);
-  writeDAC(PIN_CS2, 0, value);
-  writeDAC(PIN_CS2, 1, value);
+  dac1.setValue(0, value);
+  dac1.setValue(1, value);
+  dac2.setValue(0, value);
+  dac2.setValue(1, value);
   value += 5000;
   if(value > 65536 - 5000) {
     value = 0;
