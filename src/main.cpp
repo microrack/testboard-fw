@@ -12,6 +12,12 @@ const int SDA_PIN = 21;
 const int IO0_RST = 23;
 const int IO1_RST = 19;
 
+const int PIN_MOSI = 18;
+const int PIN_SCK  = 5;
+const int PIN_CS1  = 17;  // TX2 → DAC8552 #1
+const int PIN_CS2  = 16;  // RX2 → DAC8552 #2
+
+
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
@@ -29,6 +35,8 @@ const int LED2_PIN = GPB + 4;
 const int P12V_PASS = GPB + 0;
 const int P5V_PASS = GPB + 1;
 const int M12V_PASS = GPB + 2;
+
+SPIClass SPI_DAC(HSPI);
 
 void setup() {
   // Инициализация сериал-порта
@@ -68,8 +76,35 @@ void setup() {
   mcp1.pinMode(P5V_PASS, INPUT);
   mcp1.pinMode(M12V_PASS, INPUT);
 
+  // Инициализация пинов CS
+  pinMode(PIN_CS1, OUTPUT);
+  pinMode(PIN_CS2, OUTPUT);
+  digitalWrite(PIN_CS1, HIGH);
+  digitalWrite(PIN_CS2, HIGH);
+
+  // Инициализация SPI
+  SPI_DAC.begin(PIN_SCK, -1, PIN_MOSI, -1); // SCK, MISO (нет), MOSI, SS (не используется)
+  SPI_DAC.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE1)); // DAC8552 использует SPI Mode 1
+
   // Вывод в консоль
   Serial.println("Hello, Microrack!");
+}
+
+void writeDAC(int cs_pin, uint8_t channel, uint16_t value) {
+  uint8_t command = 0x00;
+  if (channel == 0) command = 0x00;         // DAC A
+  else if (channel == 1) command = 0x10;    // DAC B
+  else if (channel == 2) command = 0x20;    // both (A+B)
+
+  uint8_t highByte = (value >> 8) & 0xFF;
+  uint8_t lowByte  = value & 0xFF;
+
+  digitalWrite(cs_pin, LOW);
+  SPI_DAC.transfer(command);
+  SPI_DAC.transfer(highByte);
+  SPI_DAC.transfer(lowByte);
+  digitalWrite(cs_pin, HIGH);
+  delayMicroseconds(100);
 }
 
 void loop() {
@@ -83,8 +118,18 @@ void loop() {
   Serial.printf("+12: %d +5: %d -12: %d\n",
     mcp1.digitalRead(P12V_PASS),
     mcp1.digitalRead(P5V_PASS),
-    mcp1.digitalRead(M12V_PASS)
+    !mcp1.digitalRead(M12V_PASS)
   );
+
+  static uint16_t value = 0;
+  writeDAC(PIN_CS1, 0, value);
+  writeDAC(PIN_CS1, 1, value);
+  writeDAC(PIN_CS2, 0, value);
+  writeDAC(PIN_CS2, 1, value);
+  value += 5000;
+  if(value > 65536 - 5000) {
+    value = 0;
+  }
 
   state = !state;
   delay(500);
