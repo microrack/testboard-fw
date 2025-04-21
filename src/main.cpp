@@ -116,9 +116,9 @@ void loop() {
     static bool state = false;
 
     mcp1.digitalWrite(LED1_PIN, state);
-    mcp1.digitalWrite(LED2_PIN, !state);
+    mcp1.digitalWrite(LED2_PIN, state);
 
-    // Serial.println(state ? "LED1 ON, LED2 OFF" : "LED1 OFF, LED2 ON");
+    Serial.println(state ? "LED1 ON, LED2 ON" : "LED1 OFF, LED2 OFF");
 
     Serial.printf("+12: %d +5: %d -12: %d\n",
         mcp1.digitalRead(P12V_PASS),
