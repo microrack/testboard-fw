@@ -19,6 +19,14 @@ const int PIN_SCK  = 5;
 const int PIN_CS1  = 17;  // TX2 → DAC8552 #1
 const int PIN_CS2  = 16;  // RX2 → DAC8552 #2
 
+// INA196A current monitor pins
+const int INA_12V_PIN = 4;   // D4 → +12V rail current
+const int INA_5V_PIN = 2;    // D2 → +5V rail current
+const int INA_M12V_PIN = 15; // D15 → -12V rail current
+
+// INA196A configuration
+const float SHUNT_RESISTOR = 1.0;  // 1 Ohm shunt resistor
+const float INA196_GAIN = 100.0;   // INA196A gain (V/V)
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
@@ -41,6 +49,22 @@ const int M12V_PASS = GPB + 2;
 SPIClass SPI_DAC(HSPI);
 DAC8552 dac1(PIN_CS1, &SPI_DAC);
 DAC8552 dac2(PIN_CS2, &SPI_DAC);
+
+// Function to measure current in microamps
+int measureCurrent(int pin) {
+    // Read analog value (0-4095 for ESP32)
+    int rawValue = analogRead(pin);
+    float voltage = (rawValue * 3.3) / 4095.0;
+    
+    Serial.printf("Raw ADC: %d (%.3fV) ", rawValue, voltage);
+    
+    // Calculate current through shunt
+    // I = V / (R * Gain)
+    // Convert to microamps and round to integer
+    int current = (int)((voltage / (SHUNT_RESISTOR * INA196_GAIN)) * 1000000);
+    
+    return current;
+}
 
 void setup() {
     // Инициализация сериал-порта
@@ -91,6 +115,11 @@ void setup() {
     dac1.begin();
     dac2.begin();
 
+    // Configure INA196A pins as inputs
+    pinMode(INA_12V_PIN, INPUT);
+    pinMode(INA_5V_PIN, INPUT);
+    pinMode(INA_M12V_PIN, INPUT);
+
     // Вывод в консоль
     Serial.println("Hello, Microrack!");
 }
@@ -118,9 +147,18 @@ void loop() {
     mcp1.digitalWrite(LED1_PIN, state);
     mcp1.digitalWrite(LED2_PIN, state);
 
+    Serial.println("\n--- LED State Change ---");
     Serial.println(state ? "LED1 ON, LED2 ON" : "LED1 OFF, LED2 OFF");
+    delay(100); // Small delay to let the current stabilize
 
-    Serial.printf("+12: %d +5: %d -12: %d\n",
+    // Measure and print currents
+    Serial.printf("Currents (µA) - +12V: %d, +5V: %d, -12V: %d\n",
+        measureCurrent(INA_12V_PIN),
+        measureCurrent(INA_5V_PIN),
+        measureCurrent(INA_M12V_PIN)
+    );
+
+    Serial.printf("Power rails - +12: %d +5: %d -12: %d\n",
         mcp1.digitalRead(P12V_PASS),
         mcp1.digitalRead(P5V_PASS),
         !mcp1.digitalRead(M12V_PASS)
