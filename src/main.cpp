@@ -19,6 +19,11 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 extern DAC8552 dac1;
 extern DAC8552 dac2;
 
+// PD state variables
+static bool pd_state_a = false;
+static bool pd_state_b = false;
+static bool pd_state_c = false;
+
 void setup() {
     // Initialize serial port
     Serial.begin(115200);
@@ -119,12 +124,24 @@ void loop() {
     dac1.setValue(1, value);
     dac2.setValue(0, value);
     dac2.setValue(1, value);
-    value += 5000;
+    
+    // Display current DAC value
+    ESP_LOGI(TAG, "DAC Value: %d", value);
+    ESP_LOGI(TAG, "PD States - A: %d, B: %d, C: %d", pd_state_a, pd_state_b, pd_state_c);
+    
+    value += 1000;
     if(value > 65536 - 5000) {
         value = 0;
+        // Toggle PD sink pins using state variables
+        pd_state_a = !pd_state_a;
+        pd_state_b = !pd_state_b;
+        pd_state_c = !pd_state_c;
+        mcp1.digitalWrite(PIN_SINK_PD_A, pd_state_a);
+        mcp1.digitalWrite(PIN_SINK_PD_B, pd_state_b);
+        mcp1.digitalWrite(PIN_SINK_PD_C, pd_state_c);
     }
     
     state = !state;
 
-    delay(50);
+    delay(10);
 }
