@@ -31,9 +31,6 @@ void setup() {
     // Initialize hardware abstraction layer
     hal_init();
 
-    // Calibrate current measurements
-    hal_current_calibrate();
-
     // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
     if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
         ESP_LOGE(TAG, "SSD1306 allocation failed");

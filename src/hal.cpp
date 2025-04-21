@@ -18,11 +18,29 @@ static int32_t ref_current_12v = 0;
 static int32_t ref_current_5v = 0;
 static int32_t ref_current_m12v = 0;
 
+// Reference values for ADC calibration
+static int32_t ref_adc_values[ADC_sink_count] = {0};
+
 // Median filter buffer size
 #define MEDIAN_FILTER_SIZE 15
 
 void hal_init() {
+    // Initialize ADC pins
+    for(ADC_sink_t idx = (ADC_sink_t)0; idx < ADC_sink_count; idx = (ADC_sink_t)(idx + 1)) {
+        pinMode(ADC_PINS[idx], INPUT);
+    }
 
+    // Initialize DAC
+    dac_init();
+
+    // Initialize MCP
+    mcp_init();
+
+    // Calibrate ADC
+    hal_adc_calibrate();
+
+    // Calibrate current measurements
+    hal_current_calibrate();
 }
 
 void dac_init() {
@@ -99,6 +117,37 @@ int getMedian(int arr[], int size) {
     return temp[size / 2];
 }
 
+void hal_adc_calibrate() {
+    ESP_LOGD(TAG, "Starting ADC calibration...");
+    
+    // Take multiple measurements for each ADC pin and average them
+    const int CALIB_SAMPLES = 10;
+    
+    for(ADC_sink_t idx = (ADC_sink_t)0; idx < ADC_sink_count; idx = (ADC_sink_t)(idx + 1)) {
+        int32_t sum = 0;
+        
+        for(int i = 0; i < CALIB_SAMPLES; i++) {
+            int samples[MEDIAN_FILTER_SIZE];
+            
+            // Take multiple samples with median filter
+            for(int j = 0; j < MEDIAN_FILTER_SIZE; j++) {
+                samples[j] = analogRead(ADC_PINS[idx]);
+                delayMicroseconds(100);
+            }
+            
+            sum += getMedian(samples, MEDIAN_FILTER_SIZE);
+            delay(1);
+        }
+        
+        ref_adc_values[idx] = sum / CALIB_SAMPLES;
+    }
+    
+    ESP_LOGD(TAG, "ADC calibration complete. Reference values:");
+    for(ADC_sink_t idx = (ADC_sink_t)0; idx < ADC_sink_count; idx = (ADC_sink_t)(idx + 1)) {
+        ESP_LOGD(TAG, "ADC %d: raw=%d", idx, ref_adc_values[idx]);
+    }
+}
+
 int32_t hal_adc_read(ADC_sink_t idx) {
     if (idx >= ADC_sink_count) {
         ESP_LOGE(TAG, "Invalid ADC sink index");
@@ -113,16 +162,20 @@ int32_t hal_adc_read(ADC_sink_t idx) {
     // Take multiple samples
     for(int i = 0; i < MEDIAN_FILTER_SIZE; i++) {
         samples[i] = analogRead(pin);
-        delayMicroseconds(100); // Small delay between samples
+        delayMicroseconds(1); // Small delay between samples
     }
     
     // Get median value
     int raw = getMedian(samples, MEDIAN_FILTER_SIZE);
     
+    // Subtract reference value
+    raw -= ref_adc_values[idx];
+    
     // Convert to millivolts (3.3V reference, 12-bit ADC)
     int32_t millivolts = (raw * 3300) / 4095;
     
-    ESP_LOGD(TAG, "ADC sink %d: raw=%d, mV=%d", idx, raw, millivolts);
+    ESP_LOGD(TAG, "ADC sink %d: raw=%d, ref=%d, calib=%d, mV=%d", 
+             idx, raw + ref_adc_values[idx], ref_adc_values[idx], raw, millivolts);
     
     return millivolts;
 }
