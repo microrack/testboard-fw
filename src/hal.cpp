@@ -111,6 +111,11 @@ void mcp_init() {
     mcp1.pinMode(PIN_P12V_PASS, INPUT);
     mcp1.pinMode(PIN_P5V_PASS, INPUT);
     mcp1.pinMode(PIN_M12V_PASS, INPUT);
+
+    // Configure ID pins (GPA0-GPA4) with pullup
+    for(int i = 0; i < 5; i++) {
+        mcp1.pinMode(i, INPUT_PULLUP);
+    }
 }
 
 // Helper function to get median value from an array
@@ -276,4 +281,18 @@ int32_t measure_current(uint8_t pin) {
     current = max(0, current);
              
     return current;
+}
+
+uint8_t hal_adapter_id() {
+    uint8_t id = 0;
+    
+    // Read ID pins in reverse order (ID0 on GPA4, ID4 on GPA0)
+    for(int i = 0; i < 5; i++) {
+        // Read the pin (GPA0-GPA4) and shift it to the correct position
+        // Since pins are in reverse order, we use (4-i) to get the correct bit position
+        id |= (mcp1.digitalRead(i) ? 1 : 0) << (4-i);
+    }
+    
+    ESP_LOGI(TAG, "Adapter ID: 0x%02X", id);
+    return id;
 } 

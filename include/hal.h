@@ -30,6 +30,7 @@ void mcp_init();
 // Function declarations
 void hal_init();
 void hal_adc_calibrate();
+uint8_t hal_adapter_id();
 
 // External objects
 extern DAC8552 dac1;

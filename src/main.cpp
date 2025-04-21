@@ -62,6 +62,11 @@ void setup() {
 
     mcp1.digitalWrite(PIN_LED1, HIGH);
     mcp1.digitalWrite(PIN_LED2, HIGH);
+
+    // Read and display adapter ID
+    uint8_t id = hal_adapter_id();
+    display.printf("Adapter ID: 0x%02X\n", id);
+    display.display();
 }
 
 void loop() {
