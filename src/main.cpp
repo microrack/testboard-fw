@@ -68,7 +68,7 @@ void setup() {
 }
 
 void loop() {
-    
+    Serial.printf("\n\n\n\n===============\n");
     static bool state = false;
 
     // Keep LEDs on constantly
@@ -105,5 +105,5 @@ void loop() {
     
     state = !state;
 
-    delay(50);
+    delay(100);
 }
