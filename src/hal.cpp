@@ -123,7 +123,8 @@ void hal_adc_calibrate() {
     // Take multiple measurements for each ADC pin and average them
     const int CALIB_SAMPLES = 10;
     
-    for(ADC_sink_t idx = (ADC_sink_t)0; idx < ADC_sink_count; idx = (ADC_sink_t)(idx + 1)) {
+    // First calibrate 1k sinks
+    for(ADC_sink_t idx = ADC_sink_1k_A; idx <= ADC_sink_1k_F; idx = (ADC_sink_t)(idx + 1)) {
         int32_t sum = 0;
         
         for(int i = 0; i < CALIB_SAMPLES; i++) {
@@ -140,6 +141,20 @@ void hal_adc_calibrate() {
         }
         
         ref_adc_values[idx] = sum / CALIB_SAMPLES;
+    }
+    
+    // Calculate average of 1k sink values
+    int32_t avg_1k = 0;
+    for(ADC_sink_t idx = ADC_sink_1k_A; idx <= ADC_sink_1k_F; idx = (ADC_sink_t)(idx + 1)) {
+        avg_1k += ref_adc_values[idx];
+    }
+    avg_1k /= 6; // Number of 1k sinks
+    
+    ESP_LOGD(TAG, "Average 1k sink value: %d", avg_1k);
+    
+    // Use average 1k value for PD and Z sinks
+    for(ADC_sink_t idx = ADC_sink_PD_A; idx <= ADC_sink_Z_F; idx = (ADC_sink_t)(idx + 1)) {
+        ref_adc_values[idx] = avg_1k;
     }
     
     ESP_LOGD(TAG, "ADC calibration complete. Reference values:");
@@ -173,6 +188,8 @@ int32_t hal_adc_read(ADC_sink_t idx) {
     
     // Convert to millivolts (3.3V reference, 12-bit ADC)
     int32_t millivolts = (raw * 3300) / 4095;
+
+    millivolts *= ADC_atten;
     
     ESP_LOGD(TAG, "ADC sink %d: raw=%d, ref=%d, calib=%d, mV=%d", 
              idx, raw + ref_adc_values[idx], ref_adc_values[idx], raw, millivolts);

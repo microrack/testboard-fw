@@ -56,4 +56,6 @@ typedef enum {
     ADC_sink_count
 } ADC_sink_t;
 
-const int ADC_PINS[ADC_sink_count] = {36, 39, 34, 35, 32, 33, 25, 26, 27, 14, 13};
+const int ADC_PINS[ADC_sink_count] = {36, 39, 34, 35, 32, 33, 25, 26, 27, 14, 12, 13};
+
+const int ADC_atten = 3;
