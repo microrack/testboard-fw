@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <esp_log.h>
 
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -7,6 +8,8 @@
 #include <Adafruit_MCP23X17.h>
 
 #include <DAC8552.h>
+
+static const char* TAG = "testboard";
 
 const int SCL_PIN = 22;
 const int SDA_PIN = 21;
@@ -56,7 +59,7 @@ int measureCurrent(int pin) {
     int rawValue = analogRead(pin);
     float voltage = (rawValue * 3.3) / 4095.0;
     
-    Serial.printf("Raw ADC: %d (%.3fV) ", rawValue, voltage);
+    ESP_LOGD(TAG, "Raw ADC: %d (%.3fV)", rawValue, voltage);
     
     // Calculate current through shunt
     // I = V / (R * Gain)
@@ -67,13 +70,16 @@ int measureCurrent(int pin) {
 }
 
 void setup() {
-    // Инициализация сериал-порта
+    // Initialize serial port
     Serial.begin(115200);
-    delay(1000);  // Небольшая задержка на запуск
+    delay(1000);  // Small delay for startup
+
+    // Initialize ESP logging
+    esp_log_level_set("*", ESP_LOG_INFO);
 
     // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
     if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-        Serial.println(F("SSD1306 allocation failed"));
+        ESP_LOGE(TAG, "SSD1306 allocation failed");
         for(;;); // Don't proceed, loop forever
     }
 
@@ -120,8 +126,8 @@ void setup() {
     pinMode(INA_5V_PIN, INPUT);
     pinMode(INA_M12V_PIN, INPUT);
 
-    // Вывод в консоль
-    Serial.println("Hello, Microrack!");
+    // Console output
+    ESP_LOGI(TAG, "Hello, Microrack!");
 }
 
 void writeDAC(int cs_pin, uint8_t channel, uint16_t value) {
@@ -147,18 +153,18 @@ void loop() {
     mcp1.digitalWrite(LED1_PIN, state);
     mcp1.digitalWrite(LED2_PIN, state);
 
-    Serial.println("\n--- LED State Change ---");
-    Serial.println(state ? "LED1 ON, LED2 ON" : "LED1 OFF, LED2 OFF");
+    ESP_LOGI(TAG, "\n--- LED State Change ---");
+    ESP_LOGI(TAG, "%s", state ? "LED1 ON, LED2 ON" : "LED1 OFF, LED2 OFF");
     delay(100); // Small delay to let the current stabilize
 
     // Measure and print currents
-    Serial.printf("Currents (µA) - +12V: %d, +5V: %d, -12V: %d\n",
+    ESP_LOGI(TAG, "Currents (µA) - +12V: %d, +5V: %d, -12V: %d",
         measureCurrent(INA_12V_PIN),
         measureCurrent(INA_5V_PIN),
         measureCurrent(INA_M12V_PIN)
     );
 
-    Serial.printf("Power rails - +12: %d +5: %d -12: %d\n",
+    ESP_LOGI(TAG, "Power rails - +12: %d +5: %d -12: %d",
         mcp1.digitalRead(P12V_PASS),
         mcp1.digitalRead(P5V_PASS),
         !mcp1.digitalRead(M12V_PASS)
