@@ -15,9 +15,6 @@ static const char* TAG = "main";
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-Adafruit_MCP23X17 mcp0;  // addr 0x20
-Adafruit_MCP23X17 mcp1;  // addr 0x21
-
 // External objects from hal.cpp
 extern DAC8552 dac1;
 extern DAC8552 dac2;
@@ -45,23 +42,8 @@ void setup() {
     display.printf("Hello, Microrack!\n");
     display.display();
 
-    pinMode(PIN_IO0_RST, OUTPUT);
-    digitalWrite(PIN_IO0_RST, LOW);   // удерживаем в сбросе
-    delay(10);
-    digitalWrite(PIN_IO0_RST, HIGH);  // выходим из сброса
-
-    pinMode(PIN_IO1_RST, OUTPUT);
-    digitalWrite(PIN_IO1_RST, LOW);   // удерживаем в сбросе
-    delay(10);
-    digitalWrite(PIN_IO1_RST, HIGH);  // выходим из сброса
-
-    mcp1.begin_I2C(MCP_ADDR_1);
-    mcp1.pinMode(PIN_LED1, OUTPUT);
-    mcp1.pinMode(PIN_LED2, OUTPUT);
-
-    mcp1.pinMode(PIN_P12V_PASS, INPUT);
-    mcp1.pinMode(PIN_P5V_PASS, INPUT);
-    mcp1.pinMode(PIN_M12V_PASS, INPUT);
+    // Initialize MCP IO expanders
+    mcp_init();
 
     // Initialize DAC
     dac_init();
