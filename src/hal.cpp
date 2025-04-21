@@ -99,6 +99,34 @@ int getMedian(int arr[], int size) {
     return temp[size / 2];
 }
 
+int32_t hal_adc_read(ADC_sink_t idx) {
+    if (idx >= ADC_sink_count) {
+        ESP_LOGE(TAG, "Invalid ADC sink index");
+        return 0;
+    }
+    
+    uint8_t pin = ADC_PINS[idx];
+    
+    // Apply median filter
+    int samples[MEDIAN_FILTER_SIZE];
+    
+    // Take multiple samples
+    for(int i = 0; i < MEDIAN_FILTER_SIZE; i++) {
+        samples[i] = analogRead(pin);
+        delayMicroseconds(100); // Small delay between samples
+    }
+    
+    // Get median value
+    int raw = getMedian(samples, MEDIAN_FILTER_SIZE);
+    
+    // Convert to millivolts (3.3V reference, 12-bit ADC)
+    int32_t millivolts = (raw * 3300) / 4095;
+    
+    ESP_LOGD(TAG, "ADC sink %d: raw=%d, mV=%d", idx, raw, millivolts);
+    
+    return millivolts;
+}
+
 void hal_current_calibrate() {
     ESP_LOGD(TAG, "Starting current calibration...");
     

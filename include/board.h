@@ -39,3 +39,21 @@ const int PIN_LED2 = GPB + 4;
 const int PIN_P12V_PASS = GPB + 0;
 const int PIN_P5V_PASS = GPB + 1;
 const int PIN_M12V_PASS = GPB + 2; 
+
+typedef enum {
+    ADC_sink_1k_A,
+    ADC_sink_1k_B,
+    ADC_sink_1k_C,
+    ADC_sink_1k_D,
+    ADC_sink_1k_E,
+    ADC_sink_1k_F,
+    ADC_sink_PD_A,
+    ADC_sink_PD_B,
+    ADC_sink_PD_C,
+    ADC_sink_Z_D,
+    ADC_sink_Z_E,
+    ADC_sink_Z_F,
+    ADC_sink_count
+} ADC_sink_t;
+
+const int ADC_PINS[ADC_sink_count] = {36, 39, 34, 35, 32, 33, 25, 26, 27, 14, 13};

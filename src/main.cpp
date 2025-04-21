@@ -68,6 +68,7 @@ void setup() {
 }
 
 void loop() {
+    Serial.printf("\033[2J\033[H"); 
     Serial.printf("\n\n\n\n===============\n");
     static bool state = false;
 
@@ -75,11 +76,24 @@ void loop() {
     mcp1.digitalWrite(PIN_LED1, state);
     mcp1.digitalWrite(PIN_LED2, state);
 
-    // ESP_LOGI(TAG, "\n--- LED State ---");
     ESP_LOGI(TAG, "LEDS: %d", state);
     delay(1); // Small delay to let the current stabilize
-    measureCurrent(PIN_INA_5V);
-
+    
+    // Print ADC values in column format
+    ESP_LOGI(TAG, "ADC Values (mV):");
+    ESP_LOGI(TAG, "1k_A: %d", hal_adc_read(ADC_sink_1k_A));
+    ESP_LOGI(TAG, "1k_B: %d", hal_adc_read(ADC_sink_1k_B));
+    ESP_LOGI(TAG, "1k_C: %d", hal_adc_read(ADC_sink_1k_C));
+    ESP_LOGI(TAG, "1k_D: %d", hal_adc_read(ADC_sink_1k_D));
+    ESP_LOGI(TAG, "1k_E: %d", hal_adc_read(ADC_sink_1k_E));
+    ESP_LOGI(TAG, "1k_F: %d", hal_adc_read(ADC_sink_1k_F));
+    ESP_LOGI(TAG, "PD_A: %d", hal_adc_read(ADC_sink_PD_A));
+    ESP_LOGI(TAG, "PD_B: %d", hal_adc_read(ADC_sink_PD_B));
+    ESP_LOGI(TAG, "PD_C: %d", hal_adc_read(ADC_sink_PD_C));
+    ESP_LOGI(TAG, "Z_D: %d", hal_adc_read(ADC_sink_Z_D));
+    ESP_LOGI(TAG, "Z_E: %d", hal_adc_read(ADC_sink_Z_E));
+    ESP_LOGI(TAG, "Z_F: %d", hal_adc_read(ADC_sink_Z_F));
+    
     // Measure and print currents
     ESP_LOGI(TAG, "Currents (µA) - +12V: %d, +5V: %d, -12V: %d",
         measureCurrent(PIN_INA_12V),
@@ -105,5 +119,5 @@ void loop() {
     
     state = !state;
 
-    delay(100);
+    delay(50);
 }

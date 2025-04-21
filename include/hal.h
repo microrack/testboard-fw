@@ -18,6 +18,7 @@ extern Adafruit_MCP23X17 mcp1;  // addr 0x21
 int32_t measureCurrent(uint8_t pin);
 int32_t measureCurrentRaw(uint8_t pin);
 void hal_current_calibrate();
+int32_t hal_adc_read(ADC_sink_t idx);
 
 // DAC control functions
 void dac_init();
