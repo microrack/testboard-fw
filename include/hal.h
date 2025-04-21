@@ -15,14 +15,14 @@ extern Adafruit_MCP23X17 mcp0;  // addr 0x20
 extern Adafruit_MCP23X17 mcp1;  // addr 0x21
 
 // Current measurement functions
-int32_t measureCurrent(uint8_t pin);
-int32_t measureCurrentRaw(uint8_t pin);
+int32_t measure_current(uint8_t pin);
+int32_t measure_current_raw(uint8_t pin);
 void hal_current_calibrate();
 int32_t hal_adc_read(ADC_sink_t idx);
 
 // DAC control functions
 void dac_init();
-void writeDAC(int cs_pin, uint8_t channel, uint16_t value);
+void write_dac(int cs_pin, uint8_t channel, uint16_t value);
 
 // MCP initialization
 void mcp_init();

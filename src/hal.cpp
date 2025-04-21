@@ -56,7 +56,7 @@ void dac_init() {
     dac2.begin();
 }
 
-void writeDAC(int cs_pin, uint8_t channel, uint16_t value) {
+void write_dac(int cs_pin, uint8_t channel, uint16_t value) {
     uint8_t command = 0x00;
     if (channel == 0) command = 0x00;         // DAC A
     else if (channel == 1) command = 0x10;    // DAC B
@@ -103,7 +103,7 @@ void mcp_init() {
 }
 
 // Helper function to get median value from an array
-int getMedian(int arr[], int size) {
+int get_median(int arr[], int size) {
     // Create a copy of the array to avoid modifying the original
     int temp[size];
     for(int i = 0; i < size; i++) {
@@ -135,7 +135,7 @@ void hal_adc_calibrate() {
                 delayMicroseconds(100);
             }
             
-            sum += getMedian(samples, MEDIAN_FILTER_SIZE);
+            sum += get_median(samples, MEDIAN_FILTER_SIZE);
             delay(1);
         }
         
@@ -166,7 +166,7 @@ int32_t hal_adc_read(ADC_sink_t idx) {
     }
     
     // Get median value
-    int raw = getMedian(samples, MEDIAN_FILTER_SIZE);
+    int raw = get_median(samples, MEDIAN_FILTER_SIZE);
     
     // Subtract reference value
     raw -= ref_adc_values[idx];
@@ -188,9 +188,9 @@ void hal_current_calibrate() {
     int32_t sum_12v = 0, sum_5v = 0, sum_m12v = 0;
     
     for(int i = 0; i < CALIB_SAMPLES; i++) {
-        sum_12v += measureCurrentRaw(PIN_INA_12V);
-        sum_5v += measureCurrentRaw(PIN_INA_5V);
-        sum_m12v += measureCurrentRaw(PIN_INA_M12V);
+        sum_12v += measure_current_raw(PIN_INA_12V);
+        sum_5v += measure_current_raw(PIN_INA_5V);
+        sum_m12v += measure_current_raw(PIN_INA_M12V);
         delay(100);
     }
     
@@ -204,7 +204,7 @@ void hal_current_calibrate() {
 }
 
 // Helper function to measure raw current without calibration
-int32_t measureCurrentRaw(uint8_t pin) {
+int32_t measure_current_raw(uint8_t pin) {
     // Apply median filter
     int samples[MEDIAN_FILTER_SIZE];
     
@@ -216,7 +216,7 @@ int32_t measureCurrentRaw(uint8_t pin) {
     }
     
     // Get median value
-    int raw = getMedian(samples, MEDIAN_FILTER_SIZE);
+    int raw = get_median(samples, MEDIAN_FILTER_SIZE);
     
     int32_t voltage = raw * 3300 / 4095;
     int32_t current = (voltage * 1000) / (SHUNT_RESISTOR * INA196_GAIN);
@@ -224,8 +224,8 @@ int32_t measureCurrentRaw(uint8_t pin) {
     return current;
 }
 
-int32_t measureCurrent(uint8_t pin) {
-    int32_t current = measureCurrentRaw(pin);
+int32_t measure_current(uint8_t pin) {
+    int32_t current = measure_current_raw(pin);
     
     // Subtract reference value based on the pin
     switch(pin) {

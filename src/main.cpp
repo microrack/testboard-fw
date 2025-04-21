@@ -93,9 +93,9 @@ void loop() {
     
     // Measure and print currents
     ESP_LOGI(TAG, "Currents (µA) - +12V: %d, +5V: %d, -12V: %d",
-        measureCurrent(PIN_INA_12V),
-        measureCurrent(PIN_INA_5V),
-        measureCurrent(PIN_INA_M12V)
+        measure_current(PIN_INA_12V),
+        measure_current(PIN_INA_5V),
+        measure_current(PIN_INA_M12V)
     );
 
     ESP_LOGI(TAG, "Power rails - +12: %d +5: %d -12: %d",
