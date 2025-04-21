@@ -88,6 +88,17 @@ void mcp_init() {
     delay(10);
     digitalWrite(PIN_IO1_RST, HIGH);  // release reset
 
+    // Initialize MCP0
+    if (!mcp0.begin_I2C(MCP_ADDR_0)) {
+        ESP_LOGE(TAG, "Error initializing MCP0");
+        return;
+    }
+
+    // Configure all MCP0 pins as outputs
+    for(int i = 0; i < 16; i++) {
+        mcp0.pinMode(i, OUTPUT);
+    }
+
     // Initialize MCP1
     if (!mcp1.begin_I2C(MCP_ADDR_1)) {
         ESP_LOGE(TAG, "Error initializing MCP1");

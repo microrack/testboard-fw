@@ -73,6 +73,11 @@ void loop() {
     mcp1.digitalWrite(PIN_LED1, state);
     mcp1.digitalWrite(PIN_LED2, state);
 
+    // Control all MCP0 pins
+    for(int i = 0; i < 16; i++) {
+        mcp0.digitalWrite(i, state);
+    }
+
     ESP_LOGI(TAG, "LEDS: %d", state);
     delay(1); // Small delay to let the current stabilize
     
