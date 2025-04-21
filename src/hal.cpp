@@ -29,14 +29,16 @@ int measureCurrent(int pin) {
 }
 
 void dac_init() {
-    // Инициализация пинов CS
+    esp_log_level_set(TAG, ESP_LOG_INFO);  // Set log level for hal tag
+    
+    // Initialize CS pins
     pinMode(PIN_CS1, OUTPUT);
     pinMode(PIN_CS2, OUTPUT);
     digitalWrite(PIN_CS1, HIGH);
     digitalWrite(PIN_CS2, HIGH);
 
-    // Инициализация SPI
-    SPI_DAC.begin(PIN_SCK, -1, PIN_MOSI, -1); // SCK, MISO (нет), MOSI, SS (не используется)
+    // Initialize SPI
+    SPI_DAC.begin(PIN_SCK, -1, PIN_MOSI, -1); // SCK, MISO (none), MOSI, SS (not used)
     dac1.begin();
     dac2.begin();
 }

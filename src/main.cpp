@@ -91,5 +91,5 @@ void loop() {
     }
 
     state = !state;
-    delay(500);
+    delay(2000);
 }
