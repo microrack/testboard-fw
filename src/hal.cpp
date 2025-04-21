@@ -2,6 +2,7 @@
 #include "esp_log.h"
 #include <SPI.h>
 #include <DAC8552.h>
+#include <algorithm>
 
 static const char* TAG = "hal";
 
@@ -12,20 +13,11 @@ DAC8552 dac2(PIN_CS2, &SPI_DAC);
 Adafruit_MCP23X17 mcp0;  // addr 0x20
 Adafruit_MCP23X17 mcp1;  // addr 0x21
 
-// Function to measure current in microamps
-int measureCurrent(int pin) {
-    // Read analog value (0-4095 for ESP32)
-    int rawValue = analogRead(pin);
-    float voltage = (rawValue * 3.3) / 4095.0;
-    
-    ESP_LOGD(TAG, "Raw ADC: %d (%.3fV)", rawValue, voltage);
-    
-    // Calculate current through shunt
-    // I = V / (R * Gain)
-    // Convert to microamps and round to integer
-    int current = (int)((voltage / (SHUNT_RESISTOR * INA196_GAIN)) * 1000000);
-    
-    return current;
+// Median filter buffer size
+#define MEDIAN_FILTER_SIZE 15
+
+void hal_init() {
+
 }
 
 void dac_init() {
@@ -85,4 +77,41 @@ void mcp_init() {
     mcp1.pinMode(PIN_P12V_PASS, INPUT);
     mcp1.pinMode(PIN_P5V_PASS, INPUT);
     mcp1.pinMode(PIN_M12V_PASS, INPUT);
+}
+
+// Helper function to get median value from an array
+int getMedian(int arr[], int size) {
+    // Create a copy of the array to avoid modifying the original
+    int temp[size];
+    for(int i = 0; i < size; i++) {
+        temp[i] = arr[i];
+    }
+    
+    // Sort the array
+    std::sort(temp, temp + size);
+    
+    // Return the middle element
+    return temp[size / 2];
+}
+
+int32_t measureCurrent(uint8_t pin) {
+    // Apply median filter
+    int samples[MEDIAN_FILTER_SIZE];
+    
+    // Take multiple samples
+    for(int i = 0; i < MEDIAN_FILTER_SIZE; i++) {
+        int raw = analogRead(pin);
+        samples[i] = raw;
+        delayMicroseconds(100); // Small delay between samples
+    }
+    
+    // Get median value
+    int raw = getMedian(samples, MEDIAN_FILTER_SIZE);
+
+    int32_t voltage = raw * 3300 / 4095;
+
+    int32_t current = (voltage * 1000) / (SHUNT_RESISTOR * INA196_GAIN);
+    
+    ESP_LOGI(TAG, "Raw ADC value: %d, voltage: %d mV, current: %d uA", raw, voltage, current);
+    return current;
 } 

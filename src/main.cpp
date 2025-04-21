@@ -25,8 +25,11 @@ void setup() {
     delay(1000);  // Small delay for startup
 
     // Initialize ESP logging
-    esp_log_level_set("*", ESP_LOG_INFO);
-    esp_log_level_set("hal", ESP_LOG_INFO);  // Set log level for hal tag
+    esp_log_level_set("*", ESP_LOG_DEBUG);
+    esp_log_level_set("hal", ESP_LOG_DEBUG);  // Set log level for hal tag
+
+    // Initialize hardware abstraction layer
+    hal_init();
 
     // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
     if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
@@ -56,17 +59,23 @@ void setup() {
 
     // Console output
     ESP_LOGI(TAG, "Hello, Microrack!");
+
+    mcp1.digitalWrite(PIN_LED1, HIGH);
+    mcp1.digitalWrite(PIN_LED2, HIGH);
 }
 
 void loop() {
+    
     static bool state = false;
 
+    // Keep LEDs on constantly
     mcp1.digitalWrite(PIN_LED1, state);
     mcp1.digitalWrite(PIN_LED2, state);
 
-    ESP_LOGI(TAG, "\n--- LED State Change ---");
-    ESP_LOGI(TAG, "%s", state ? "LED1 ON, LED2 ON" : "LED1 OFF, LED2 OFF");
-    delay(100); // Small delay to let the current stabilize
+    // ESP_LOGI(TAG, "\n--- LED State ---");
+    ESP_LOGI(TAG, "LEDS: %d", state);
+    delay(1); // Small delay to let the current stabilize
+    measureCurrent(PIN_INA_5V);
 
     // Measure and print currents
     ESP_LOGI(TAG, "Currents (µA) - +12V: %d, +5V: %d, -12V: %d",
@@ -90,7 +99,8 @@ void loop() {
     if(value > 65536 - 5000) {
         value = 0;
     }
-
+    
     state = !state;
-    delay(2000);
+
+    delay(50);
 }

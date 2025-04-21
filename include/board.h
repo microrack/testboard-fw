@@ -19,7 +19,7 @@ const int PIN_INA_M12V = 15; // D15 → -12V rail current
 
 // INA196A configuration
 const float SHUNT_RESISTOR = 1.0f;  // 1 Ohm shunt resistor
-const float INA196_GAIN = 100.0f;   // INA196A gain (V/V)
+const float INA196_GAIN = 20.0f;   // INA196A gain (V/V)
 
 // Display configuration
 const int SCREEN_WIDTH = 128; // OLED display width, in pixels
