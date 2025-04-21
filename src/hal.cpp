@@ -13,6 +13,11 @@ DAC8552 dac2(PIN_CS2, &SPI_DAC);
 Adafruit_MCP23X17 mcp0;  // addr 0x20
 Adafruit_MCP23X17 mcp1;  // addr 0x21
 
+// Reference values for current calibration
+static int32_t ref_current_12v = 0;
+static int32_t ref_current_5v = 0;
+static int32_t ref_current_m12v = 0;
+
 // Median filter buffer size
 #define MEDIAN_FILTER_SIZE 15
 
@@ -94,7 +99,31 @@ int getMedian(int arr[], int size) {
     return temp[size / 2];
 }
 
-int32_t measureCurrent(uint8_t pin) {
+void hal_current_calibrate() {
+    ESP_LOGD(TAG, "Starting current calibration...");
+    
+    // Take multiple measurements for each rail and average them
+    const int CALIB_SAMPLES = 10;
+    int32_t sum_12v = 0, sum_5v = 0, sum_m12v = 0;
+    
+    for(int i = 0; i < CALIB_SAMPLES; i++) {
+        sum_12v += measureCurrentRaw(PIN_INA_12V);
+        sum_5v += measureCurrentRaw(PIN_INA_5V);
+        sum_m12v += measureCurrentRaw(PIN_INA_M12V);
+        delay(100);
+    }
+    
+    ref_current_12v = sum_12v / CALIB_SAMPLES;
+    ref_current_5v = sum_5v / CALIB_SAMPLES;
+    ref_current_m12v = sum_m12v / CALIB_SAMPLES;
+    
+    ESP_LOGD(TAG, "Calibration complete. Reference values:");
+    ESP_LOGD(TAG, "+12V: %d, +5V: %d, -12V: %d", 
+             ref_current_12v, ref_current_5v, ref_current_m12v);
+}
+
+// Helper function to measure raw current without calibration
+int32_t measureCurrentRaw(uint8_t pin) {
     // Apply median filter
     int samples[MEDIAN_FILTER_SIZE];
     
@@ -107,11 +136,35 @@ int32_t measureCurrent(uint8_t pin) {
     
     // Get median value
     int raw = getMedian(samples, MEDIAN_FILTER_SIZE);
-
+    
     int32_t voltage = raw * 3300 / 4095;
-
     int32_t current = (voltage * 1000) / (SHUNT_RESISTOR * INA196_GAIN);
     
-    ESP_LOGI(TAG, "Raw ADC value: %d, voltage: %d mV, current: %d uA", raw, voltage, current);
+    return current;
+}
+
+int32_t measureCurrent(uint8_t pin) {
+    int32_t current = measureCurrentRaw(pin);
+    
+    // Subtract reference value based on the pin
+    switch(pin) {
+        case PIN_INA_12V:
+            current -= ref_current_12v;
+            break;
+        case PIN_INA_5V:
+            current -= ref_current_5v;
+            break;
+        case PIN_INA_M12V:
+            current -= ref_current_m12v;
+            break;
+    }
+    
+    ESP_LOGD(TAG, "Current measurement - Raw: %d uA, Calibrated: %d uA", 
+             current + (pin == PIN_INA_12V ? ref_current_12v : 
+                       pin == PIN_INA_5V ? ref_current_5v : ref_current_m12v),
+             current);
+             
+    current = max(0, current);
+             
     return current;
 } 

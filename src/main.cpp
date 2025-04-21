@@ -26,10 +26,13 @@ void setup() {
 
     // Initialize ESP logging
     esp_log_level_set("*", ESP_LOG_DEBUG);
-    esp_log_level_set("hal", ESP_LOG_DEBUG);  // Set log level for hal tag
+    esp_log_level_set("hal", ESP_LOG_INFO);  // Set log level for hal tag
 
     // Initialize hardware abstraction layer
     hal_init();
+
+    // Calibrate current measurements
+    hal_current_calibrate();
 
     // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
     if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
