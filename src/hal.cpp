@@ -29,8 +29,6 @@ int measureCurrent(int pin) {
 }
 
 void dac_init() {
-    esp_log_level_set(TAG, ESP_LOG_INFO);  // Set log level for hal tag
-    
     // Initialize CS pins
     pinMode(PIN_CS1, OUTPUT);
     pinMode(PIN_CS2, OUTPUT);
