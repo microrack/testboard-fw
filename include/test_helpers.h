@@ -3,17 +3,26 @@
 #include <Arduino.h>
 
 /**
- * @brief Macro to execute a function and propagate its return value
+ * @brief Macro to execute a function and retry on failure
  * 
  * This macro executes the provided function and if it returns false,
- * immediately returns false from the calling function.
+ * turns on the FAIL LED and retries the function until either:
+ * 1. The function succeeds, or
+ * 2. The power rails state is no longer POWER_RAILS_ALL
  * 
  * @param func The function to execute
  */
 #define TEST_RUN(func) do { \
-    if (!(func)) { \
-        return false; \
+    bool p12v_ok, p5v_ok, m12v_ok; \
+    while (!(func)) { \
+        mcp1.digitalWrite(PIN_LED_FAIL, HIGH); \
+        mcp1.digitalWrite(PIN_LED_OK, LOW); \
+        if (get_power_rails_state(p12v_ok, p5v_ok, m12v_ok) != POWER_RAILS_ALL) { \
+            return false; \
+        } \
+        delay(100); \
     } \
+    mcp1.digitalWrite(PIN_LED_FAIL, LOW); \
 } while(0)
 
 /**
