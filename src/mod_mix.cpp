@@ -18,6 +18,14 @@ bool mod_mix_handler(void) {
     ESP_LOGI(TAG, "Starting mod_mix test sequence");
     display_printf("Testing mod_mix...");
 
+    power_rails_current_ranges_t ranges = {
+        .p12v = {22000, 30000},  // +12V: 22-30 mA
+        .m12v = {22000, 30000},  // -12V: 22-30 mA
+        .p5v = {13000, 25000}    // +5V: 13-25 mA
+    };
+    // Check initial current consumption
+    TEST_RUN(check_initial_current_consumption(ranges));
+
     TEST_RUN(test_mode());
 
     return true;

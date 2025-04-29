@@ -60,4 +60,29 @@ power_rails_state_t wait_for_module_insertion(bool& p12v_ok, bool& p5v_ok, bool&
  * @param m12v_ok Output parameter for -12V rail state
  * @return power_rails_state_t The final state of the power rails
  */
-power_rails_state_t wait_for_module_removal(bool& p12v_ok, bool& p5v_ok, bool& m12v_ok); 
+power_rails_state_t wait_for_module_removal(bool& p12v_ok, bool& p5v_ok, bool& m12v_ok);
+
+/**
+ * @brief Structure defining current range for a power rail
+ */
+typedef struct {
+    int32_t min;  // Minimum acceptable current in uA
+    int32_t max;  // Maximum acceptable current in uA
+} current_range_t;
+
+/**
+ * @brief Structure defining current ranges for all power rails
+ */
+typedef struct {
+    current_range_t p12v;  // +12V rail range
+    current_range_t m12v;  // -12V rail range
+    current_range_t p5v;   // +5V rail range
+} power_rails_current_ranges_t;
+
+/**
+ * @brief Checks if the initial current consumption is within acceptable ranges
+ * 
+ * @param ranges Structure containing acceptable current ranges for all power rails
+ * @return true if all current measurements are within acceptable ranges, false otherwise
+ */
+bool check_initial_current_consumption(const power_rails_current_ranges_t& ranges); 
