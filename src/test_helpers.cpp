@@ -132,4 +132,23 @@ bool check_initial_current_consumption(const power_rails_current_ranges_t& range
     }
 
     return p12v_ok && m12v_ok && p5v_ok;
+}
+
+bool test_pin_range(ADC_sink_t pin, const range_t& range, const char* pin_name) {
+    ESP_LOGI("test_helpers", "Testing %s", pin_name);
+
+    // Measure voltage for the pin
+    int32_t voltage_raw = hal_adc_read(pin);
+    float voltage = voltage_raw / 1000.0f;  // Convert to volts
+
+    ESP_LOGI("test_helpers", "%s voltage: %.2f V", pin_name, voltage);
+
+    // Check voltage range
+    if (voltage < range.min || voltage > range.max) {
+        ESP_LOGE("test_helpers", "%s voltage out of range: %.2f V", pin_name, voltage);
+        display_printf("%s voltage out of range\n%.2f V", pin_name, voltage);
+        return false;
+    }
+
+    return true;
 } 
