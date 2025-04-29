@@ -10,6 +10,7 @@
 
 #include "board.h"
 #include "hal.h"
+#include "test_helpers.h"
 
 static const char* TAG = "main";
 
@@ -75,73 +76,103 @@ void setup() {
 }
 
 void loop() {
-    Serial.printf("\033[2J\033[H"); 
-    Serial.printf("\n\n\n\n===============\n");
-    static bool state = false;
+    // Step 1: Switch off both LEDs
+    mcp1.digitalWrite(PIN_LED_OK, LOW);
+    mcp1.digitalWrite(PIN_LED_FAIL, LOW);
 
-    // Keep LEDs on constantly
-    mcp1.digitalWrite(PIN_LED_OK, state);
-    mcp1.digitalWrite(PIN_LED_FAIL, state);
+    // Step 2: Wait for adapter
+    uint8_t adapter_id = hal_adapter_id();
+    if (adapter_id == 0b11111) {
+        ESP_LOGI(TAG, "Waiting for adapter...");
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.printf("Waiting for adapter...");
+        display.display();
 
-    // Control all MCP0 pins
-    for(int i = 0; i < 16; i++) {
-        mcp0.digitalWrite(i, state);
+        while (hal_adapter_id() == 0b11111) {
+            delay(100);
+        }
+        adapter_id = hal_adapter_id();
     }
 
-    ESP_LOGI(TAG, "LEDS: %d", state);
-    delay(1); // Small delay to let the current stabilize
-    
-    // Print ADC values in column format
-    ESP_LOGI(TAG, "ADC Values (mV):");
-    ESP_LOGI(TAG, "1k_A: %d", hal_adc_read(ADC_sink_1k_A));
-    ESP_LOGI(TAG, "1k_B: %d", hal_adc_read(ADC_sink_1k_B));
-    ESP_LOGI(TAG, "1k_C: %d", hal_adc_read(ADC_sink_1k_C));
-    ESP_LOGI(TAG, "1k_D: %d", hal_adc_read(ADC_sink_1k_D));
-    ESP_LOGI(TAG, "1k_E: %d", hal_adc_read(ADC_sink_1k_E));
-    ESP_LOGI(TAG, "1k_F: %d", hal_adc_read(ADC_sink_1k_F));
-    ESP_LOGI(TAG, "PD_A: %d", hal_adc_read(ADC_sink_PD_A));
-    ESP_LOGI(TAG, "PD_B: %d", hal_adc_read(ADC_sink_PD_B));
-    ESP_LOGI(TAG, "PD_C: %d", hal_adc_read(ADC_sink_PD_C));
-    ESP_LOGI(TAG, "Z_D: %d", hal_adc_read(ADC_sink_Z_D));
-    ESP_LOGI(TAG, "Z_E: %d", hal_adc_read(ADC_sink_Z_E));
-    ESP_LOGI(TAG, "Z_F: %d", hal_adc_read(ADC_sink_Z_F));
-    
-    // Measure and print currents
-    ESP_LOGI(TAG, "Currents (µA) - +12V: %d, +5V: %d, -12V: %d",
-        measure_current(PIN_INA_12V),
-        measure_current(PIN_INA_5V),
-        measure_current(PIN_INA_M12V)
-    );
+    // Adapter detected
+    ESP_LOGI(TAG, "Adapter detected: 0x%02X", adapter_id);
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.printf("Adapter ID: 0x%02X", adapter_id);
+    display.display();
 
-    ESP_LOGI(TAG, "Power rails - +12: %d +5: %d -12: %d",
-        mcp1.digitalRead(PIN_P12V_PASS),
-        mcp1.digitalRead(PIN_P5V_PASS),
-        !mcp1.digitalRead(PIN_M12V_PASS)
-    );
+    // Step 4: Wait for module removal for calibration
+    bool p12v_ok, p5v_ok, m12v_ok;
+    bool rails_ok = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
 
-    static uint16_t value = 0;
-    dac1.setValue(0, value);
-    dac1.setValue(1, value);
-    dac2.setValue(0, value);
-    dac2.setValue(1, value);
-    
-    // Display current DAC value
-    ESP_LOGI(TAG, "DAC Value: %d", value);
-    ESP_LOGI(TAG, "PD States - A: %d, B: %d, C: %d", pd_state_a, pd_state_b, pd_state_c);
-    
-    value += 1000;
-    if(value > 65536 - 5000) {
-        value = 0;
-        // Toggle PD sink pins using state variables
-        pd_state_a = !pd_state_a;
-        pd_state_b = !pd_state_b;
-        pd_state_c = !pd_state_c;
-        mcp1.digitalWrite(PIN_SINK_PD_A, pd_state_a);
-        mcp1.digitalWrite(PIN_SINK_PD_B, pd_state_b);
-        mcp1.digitalWrite(PIN_SINK_PD_C, pd_state_c);
+    if (rails_ok) {
+        ESP_LOGI(TAG, "Waiting for calibration, remove module");
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.printf("Remove module for calibration");
+        display.display();
+
+        do {
+            rails_ok = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+            delay(100);
+        } while (rails_ok);
     }
-    
-    state = !state;
 
-    delay(10);
+    // Step 5: Perform calibration
+    ESP_LOGI(TAG, "Performing calibration...");
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.printf("Calibrating...");
+    display.display();
+    
+    hal_current_calibrate();
+    hal_adc_calibrate();
+    
+    ESP_LOGI(TAG, "Calibration complete");
+
+    // Main measurement loop
+    while (1) {
+        // Step 6.1: Turn on fail LED and wait for module
+        mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+        ESP_LOGI(TAG, "Waiting for module...");
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.printf("Waiting for module...");
+        display.display();
+
+        while (!rails_ok) {
+            rails_ok = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+            delay(100);
+        }
+
+        // Step 6.2: Module inserted, wait 100ms and measure
+        delay(100);
+        int32_t current_12v = measure_current(PIN_INA_12V);
+        int32_t current_5v = measure_current(PIN_INA_5V);
+        int32_t current_m12v = measure_current(PIN_INA_M12V);
+
+        ESP_LOGI(TAG, "Current measurements:");
+        ESP_LOGI(TAG, "+12V: %d uA", current_12v);
+        ESP_LOGI(TAG, "+5V: %d uA", current_5v);
+        ESP_LOGI(TAG, "-12V: %d uA", current_m12v);
+
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.printf("+12V: %d uA\n", current_12v);
+        display.printf("+5V: %d uA\n", current_5v);
+        display.printf("-12V: %d uA", current_m12v);
+        display.display();
+
+        mcp1.digitalWrite(PIN_LED_FAIL, LOW);
+        mcp1.digitalWrite(PIN_LED_OK, HIGH);
+
+        // Step 6.3: Wait for module removal
+        while (rails_ok) {
+            rails_ok = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+            delay(100);
+        }
+
+        mcp1.digitalWrite(PIN_LED_OK, LOW);
+    }
 }
