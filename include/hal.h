@@ -22,9 +22,17 @@ int32_t hal_adc_read(ADC_sink_t idx);
 void hal_print_current(void);
 void hal_clear_console(void);
 
+typedef enum {
+    SOURCE_A,
+    SOURCE_B,
+    SOURCE_C,
+    SOURCE_D,
+    SOURCE_COUNT
+} source_net_t; 
 // DAC control functions
 void dac_init();
 void write_dac(int cs_pin, uint8_t channel, uint16_t value);
+void hal_set_source(source_net_t net, float voltage);
 
 // MCP initialization
 void mcp_init();
@@ -36,4 +44,4 @@ uint8_t hal_adapter_id();
 
 // External objects
 extern DAC8552 dac1;
-extern DAC8552 dac2; 
+extern DAC8552 dac2;

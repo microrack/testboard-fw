@@ -83,7 +83,6 @@ void write_dac(int cs_pin, uint8_t channel, uint16_t value) {
     SPI_DAC.transfer(highByte);
     SPI_DAC.transfer(lowByte);
     digitalWrite(cs_pin, HIGH);
-    delayMicroseconds(100);
 }
 
 void mcp_init() {
@@ -326,6 +325,44 @@ void hal_print_current(void) {
 
     ESP_LOGI(TAG, "Current measurements:\n+12V: %.2f mA\n+5V: %.2f mA\n-12V: %.2f mA",
              current_12v_ma, current_5v_ma, current_m12v_ma);
+}
+
+void hal_set_source(source_net_t net, float voltage) {
+    // Validate voltage range
+    if (voltage < -5.0f || voltage > 5.0f) {
+        ESP_LOGE(TAG, "Invalid voltage: %.2f V. Must be between -5 and +5 V", voltage);
+        return;
+    }
+
+    // Validate net
+    if (net >= SOURCE_COUNT) {
+        ESP_LOGE(TAG, "Invalid source net: %d", net);
+        return;
+    }
+
+    // Convert voltage to DAC value (0-65535)
+    // -5V = 0, 0V = 32768, +5V = 65535
+    uint16_t dac_value = (uint16_t)((voltage + 5.0f) * 65535.0f / 10.0f);
+
+    // Set appropriate DAC based on net
+    switch (net) {
+        case SOURCE_A:
+            dac2.setValue(0, dac_value);  // DAC1 channel A
+            break;
+        case SOURCE_B:
+            dac2.setValue(1, dac_value);  // DAC2 channel B
+            break;
+        case SOURCE_C:
+            dac1.setValue(0, dac_value);  // DAC2 channel A
+            break;
+        case SOURCE_D:
+            dac1.setValue(1, dac_value);  // DAC1 channel B
+            break;
+        default:
+            return;  // Should never reach here due to validation above
+    }
+
+    ESP_LOGD(TAG, "Set source %d to %.2f V (DAC value: %d)", net, voltage, dac_value);
 }
 
 void hal_clear_console(void) {
