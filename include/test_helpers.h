@@ -1,29 +1,41 @@
 #pragma once
 
 #include <Arduino.h>
+#include "hal.h"
 
 /**
  * @brief Macro to execute a function and retry on failure
  * 
  * This macro executes the provided function and if it returns false,
  * turns on the FAIL LED and retries the function until either:
- * 1. The function succeeds, or
- * 2. The power rails state is no longer POWER_RAILS_ALL
+ * 1. The function returns true (returns TEST_NEED_REPEAT if this was a retry)
+ * 2. The power rails state is no longer POWER_RAILS_ALL (returns TEST_INTERRUPTED)
  * 
  * @param func The function to execute
  */
 #define TEST_RUN(func) do { \
-    bool p12v_ok, p5v_ok, m12v_ok; \
-    while (!(func)) { \
-        mcp1.digitalWrite(PIN_LED_FAIL, HIGH); \
-        mcp1.digitalWrite(PIN_LED_OK, LOW); \
-        if (get_power_rails_state(p12v_ok, p5v_ok, m12v_ok) != POWER_RAILS_ALL) { \
-            return false; \
+    if (!func) { \
+        while (!func) { \
+            mcp1.digitalWrite(PIN_LED_FAIL, HIGH); \
+            mcp1.digitalWrite(PIN_LED_OK, LOW); \
+            if (get_power_rails_state(NULL, NULL, NULL) != POWER_RAILS_ALL) { \
+                return TEST_INTERRUPTED; \
+            } \
+            delay(10); \
         } \
-        delay(100); \
+        mcp1.digitalWrite(PIN_LED_FAIL, LOW); \
+        return TEST_NEED_REPEAT; \
     } \
-    mcp1.digitalWrite(PIN_LED_FAIL, LOW); \
 } while(0)
+
+/**
+ * @brief Test result states
+ */
+typedef enum {
+    TEST_OK,           // Test passed successfully
+    TEST_NEED_REPEAT,  // Test needs to be repeated
+    TEST_INTERRUPTED   // Test was interrupted (e.g. power rails disconnected)
+} test_result_t;
 
 /**
  * @brief Power rail connection states
@@ -42,7 +54,7 @@ typedef enum {
  * @param m12v_state Output parameter for -12V rail state (true if OK)
  * @return power_rails_state_t indicating the overall state of power rails
  */
-power_rails_state_t get_power_rails_state(bool& p12v_state, bool& p5v_state, bool& m12v_state);
+power_rails_state_t get_power_rails_state(bool* p12v_state, bool* p5v_state, bool* m12v_state);
 
 /**
  * @brief Performs the startup sequence including adapter detection and calibration
@@ -94,4 +106,27 @@ typedef struct {
  * @param ranges Structure containing acceptable current ranges for all power rails
  * @return true if all current measurements are within acceptable ranges, false otherwise
  */
-bool check_initial_current_consumption(const power_rails_current_ranges_t& ranges); 
+bool check_initial_current_consumption(const power_rails_current_ranges_t& ranges);
+
+/**
+ * @brief Test if a pin's voltage is within specified range
+ * 
+ * @param pin The ADC sink pin to test
+ * @param range The expected voltage range
+ * @param pin_name The name of the pin for display purposes
+ * @return true if the voltage is within range, false otherwise
+ */
+bool test_pin_range(ADC_sink_t pin, const range_t& range, const char* pin_name);
+
+/**
+ * @brief Test a pin with pull-down functionality
+ * 
+ * @param source The voltage source configuration (ADC pin and PD control pin)
+ * @param hiz_range Expected voltage range in high-impedance state
+ * @param pd_range Expected voltage range in pull-down state
+ * @param source_name Name of the source for display purposes
+ * @return true if both high-Z and pull-down voltages are within expected ranges
+ */
+bool test_pin_pd(const voltage_source_t& source, 
+                const range_t& hiz_range, const range_t& pd_range,
+                const char* source_name); 

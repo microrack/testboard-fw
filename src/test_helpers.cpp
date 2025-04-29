@@ -5,38 +5,25 @@
 
 static const char* TAG = "test_helpers";
 
-power_rails_state_t get_power_rails_state(bool& p12v_state, bool& p5v_state, bool& m12v_ok) {
-    // Read power rail states from MCP
-    p12v_state = mcp1.digitalRead(PIN_P12V_PASS);
-    p5v_state = mcp1.digitalRead(PIN_P5V_PASS);
-    m12v_ok = !mcp1.digitalRead(PIN_M12V_PASS); // Inverted signal
+power_rails_state_t get_power_rails_state(bool* p12v_state, bool* p5v_state, bool* m12v_state) {
+    // Create local variables to store the states
+    bool p12v = mcp1.digitalRead(PIN_P12V_PASS);
+    bool p5v = mcp1.digitalRead(PIN_P5V_PASS);
+    bool m12v = !mcp1.digitalRead(PIN_M12V_PASS); // Inverted signal
 
-    ESP_LOGD(TAG, "Power rail states - +12V: %d, +5V: %d, -12V: %d", 
-             p12v_state, p5v_state, m12v_ok);
+    // Only write to output parameters if they are not NULL
+    if (p12v_state) *p12v_state = p12v;
+    if (p5v_state) *p5v_state = p5v;
+    if (m12v_state) *m12v_state = m12v;
 
-    // Count how many rails are connected
-    int connected_rails = 0;
-    if (p12v_state) connected_rails++;
-    if (p5v_state) connected_rails++;
-    if (m12v_ok) connected_rails++;
-
-    ESP_LOGD(TAG, "Connected rails count: %d", connected_rails);
-
-    // Return appropriate state based on number of connected rails
-    power_rails_state_t state;
-    if (connected_rails == 0) {
-        state = POWER_RAILS_NONE;
-    } else if (connected_rails == 3) {
-        state = POWER_RAILS_ALL;
+    // Determine overall state
+    if (p12v && p5v && m12v) {
+        return POWER_RAILS_ALL;
+    } else if (!p12v && !p5v && !m12v) {
+        return POWER_RAILS_NONE;
     } else {
-        state = POWER_RAILS_PARTIAL;
+        return POWER_RAILS_PARTIAL;
     }
-
-    ESP_LOGD(TAG, "Power rail state: %s", 
-             state == POWER_RAILS_NONE ? "NONE" : 
-             state == POWER_RAILS_ALL ? "ALL" : "PARTIAL");
-
-    return state;
 }
 
 bool perform_startup_sequence() {
@@ -60,13 +47,13 @@ bool perform_startup_sequence() {
 
     // Step 4: Wait for module removal for calibration
     bool p12v_ok, p5v_ok, m12v_ok;
-    power_rails_state_t rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+    power_rails_state_t rails_state = get_power_rails_state(&p12v_ok, &p5v_ok, &m12v_ok);
 
     if (rails_state != POWER_RAILS_NONE) {
         display_printf("Remove module for calibration");
 
         do {
-            rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+            rails_state = get_power_rails_state(&p12v_ok, &p5v_ok, &m12v_ok);
             delay(100);
         } while (rails_state != POWER_RAILS_NONE);
     }
@@ -84,7 +71,7 @@ bool perform_startup_sequence() {
 power_rails_state_t wait_for_module_insertion(bool& p12v_ok, bool& p5v_ok, bool& m12v_ok) {
     power_rails_state_t rails_state;
     do {
-        rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+        rails_state = get_power_rails_state(&p12v_ok, &p5v_ok, &m12v_ok);
         delay(100);
     } while (rails_state != POWER_RAILS_ALL);
     return rails_state;
@@ -93,7 +80,7 @@ power_rails_state_t wait_for_module_insertion(bool& p12v_ok, bool& p5v_ok, bool&
 power_rails_state_t wait_for_module_removal(bool& p12v_ok, bool& p5v_ok, bool& m12v_ok) {
     power_rails_state_t rails_state;
     do {
-        rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+        rails_state = get_power_rails_state(&p12v_ok, &p5v_ok, &m12v_ok);
         delay(100);
     } while (rails_state != POWER_RAILS_NONE);
     return rails_state;
