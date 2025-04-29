@@ -26,4 +26,24 @@ power_rails_state_t get_power_rails_state(bool& p12v_state, bool& p5v_state, boo
  * 
  * @return true if startup was successful, false otherwise
  */
-bool perform_startup_sequence(); 
+bool perform_startup_sequence();
+
+/**
+ * @brief Waits for a module to be inserted (all power rails connected)
+ * 
+ * @param p12v_ok Output parameter for +12V rail state
+ * @param p5v_ok Output parameter for +5V rail state
+ * @param m12v_ok Output parameter for -12V rail state
+ * @return power_rails_state_t The final state of the power rails
+ */
+power_rails_state_t wait_for_module_insertion(bool& p12v_ok, bool& p5v_ok, bool& m12v_ok);
+
+/**
+ * @brief Waits for a module to be removed (no power rails connected)
+ * 
+ * @param p12v_ok Output parameter for +12V rail state
+ * @param p5v_ok Output parameter for +5V rail state
+ * @param m12v_ok Output parameter for -12V rail state
+ * @return power_rails_state_t The final state of the power rails
+ */
+power_rails_state_t wait_for_module_removal(bool& p12v_ok, bool& p5v_ok, bool& m12v_ok); 

@@ -75,12 +75,7 @@ void loop() {
     display_printf("Waiting for module...");
 
     bool p12v_ok, p5v_ok, m12v_ok;
-    power_rails_state_t rails_state;
-    
-    do {
-        rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
-        delay(100);
-    } while (rails_state != POWER_RAILS_ALL);
+    wait_for_module_insertion(p12v_ok, p5v_ok, m12v_ok);
 
     // Step 6.2: Module inserted, wait 100ms and measure
     delay(100);
@@ -95,10 +90,7 @@ void loop() {
     mcp1.digitalWrite(PIN_LED_OK, HIGH);
 
     // Step 6.3: Wait for module removal
-    do {
-        rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
-        delay(100);
-    } while (rails_state != POWER_RAILS_NONE);
+    wait_for_module_removal(p12v_ok, p5v_ok, m12v_ok);
 
     mcp1.digitalWrite(PIN_LED_OK, LOW);
 }

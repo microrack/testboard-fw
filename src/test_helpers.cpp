@@ -65,4 +65,22 @@ bool perform_startup_sequence() {
     
     ESP_LOGI("test_helpers", "Calibration complete");
     return true;
+}
+
+power_rails_state_t wait_for_module_insertion(bool& p12v_ok, bool& p5v_ok, bool& m12v_ok) {
+    power_rails_state_t rails_state;
+    do {
+        rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+        delay(100);
+    } while (rails_state != POWER_RAILS_ALL);
+    return rails_state;
+}
+
+power_rails_state_t wait_for_module_removal(bool& p12v_ok, bool& p5v_ok, bool& m12v_ok) {
+    power_rails_state_t rails_state;
+    do {
+        rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+        delay(100);
+    } while (rails_state != POWER_RAILS_NONE);
+    return rails_state;
 } 
