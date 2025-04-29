@@ -47,6 +47,7 @@ void setup() {
 void loop() {
     // Step 6.1: Turn on fail LED and wait for module
     mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+    mcp1.digitalWrite(PIN_LED_OK, LOW);
     display_printf("Waiting for module...");
 
     bool p12v_ok, p5v_ok, m12v_ok;
@@ -59,14 +60,33 @@ void loop() {
     ESP_LOGI(TAG, "Module detected: %s (ID: %d)", module->name, adapter_id);
     display_printf("Module: %s", module->name);
 
-    // Call appropriate module handler
-    module->handler();
-
     mcp1.digitalWrite(PIN_LED_FAIL, LOW);
-    mcp1.digitalWrite(PIN_LED_OK, HIGH);
+
+    // Retry test until it passes or module is removed
+    bool test_passed = false;
+    while (!test_passed) {
+        // Call appropriate module handler
+        if(module->handler()) {
+            mcp1.digitalWrite(PIN_LED_OK, HIGH);
+            mcp1.digitalWrite(PIN_LED_FAIL, LOW);
+            display_printf("Module OK");
+            test_passed = true;
+        } else {
+            mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+            mcp1.digitalWrite(PIN_LED_OK, LOW);
+            display_printf("Module FAIL - Retrying...");
+            
+            // Check if module is still present
+            power_rails_state_t rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+            if (rails_state != POWER_RAILS_ALL) {
+                ESP_LOGI(TAG, "Module removed during retry");
+                break;
+            }
+            
+            delay(100); // Wait before retrying
+        }
+    }
 
     // Step 6.3: Wait for module removal
     wait_for_module_removal(p12v_ok, p5v_ok, m12v_ok);
-
-    mcp1.digitalWrite(PIN_LED_OK, LOW);
 }
