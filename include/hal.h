@@ -19,6 +19,8 @@ int32_t measure_current(uint8_t pin);
 int32_t measure_current_raw(uint8_t pin);
 void hal_current_calibrate();
 int32_t hal_adc_read(ADC_sink_t idx);
+void hal_print_current(void);
+void hal_clear_console(void);
 
 // DAC control functions
 void dac_init();

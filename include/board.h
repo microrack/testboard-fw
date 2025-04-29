@@ -46,6 +46,25 @@ const int PIN_SINK_PD_B = GPB + 6;
 const int PIN_SINK_PD_C = GPB + 7;
 
 typedef enum {
+    IO0 = 0,
+    IO1 = 1,
+    IO2 = 2,
+    IO3 = 3,
+    IO4 = 4,
+    IO5 = 5,
+    IO6 = 6,
+    IO7 = 7,
+    IO8 = 8,
+    IO9 = 9,
+    IO10 = 10,
+    IO11 = 11,
+    IO12 = 12,
+    IO13 = 13,
+    IO14 = 14,
+    IO15 = 15
+} mcp_io_t;
+
+typedef enum {
     ADC_sink_1k_A,
     ADC_sink_1k_B,
     ADC_sink_1k_C,

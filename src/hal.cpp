@@ -26,7 +26,7 @@ static int32_t ref_adc_values[ADC_sink_count] = {0};
 
 void hal_init() {
     // Initialize serial port
-    Serial.begin(115200);
+    Serial.begin(921600);
     delay(1000);  // Small delay for startup
 
     // Initialize ESP logging
@@ -313,4 +313,25 @@ uint8_t hal_adapter_id() {
     
     ESP_LOGD(TAG, "Adapter ID: 0x%02X", id);
     return id;
+}
+
+void hal_print_current(void) {
+    int32_t current_12v_ua = measure_current(PIN_INA_12V);
+    int32_t current_5v_ua = measure_current(PIN_INA_5V);
+    int32_t current_m12v_ua = measure_current(PIN_INA_M12V);
+
+    float current_12v_ma = current_12v_ua / 1000.0f;
+    float current_5v_ma = current_5v_ua / 1000.0f;
+    float current_m12v_ma = current_m12v_ua / 1000.0f;
+
+    ESP_LOGI(TAG, "Current measurements:\n+12V: %.2f mA\n+5V: %.2f mA\n-12V: %.2f mA",
+             current_12v_ma, current_5v_ma, current_m12v_ma);
+}
+
+void hal_clear_console(void) {
+    // Send ANSI escape sequences to:
+    // 1. Clear the screen (\033[2J)
+    // 2. Move cursor to home position (\033[H)
+    Serial.print("\033[2J\033[H");
+    Serial.flush();  // Ensure all data is sent
 } 
