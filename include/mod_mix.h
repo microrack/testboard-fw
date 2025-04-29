@@ -7,8 +7,6 @@ typedef enum {
     MODE_BI
 } mix_mode_t;
 
-extern mix_mode_t current_mode;
-
 /**
  * @brief Handler for mod_mix module testing
  * 
