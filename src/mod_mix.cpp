@@ -29,6 +29,7 @@ float gain[3] = {0.0f, 0.0f, 0.0f};      // Global gain array for A, B, C pots
 static bool test_mode(void);
 static bool test_pot(void);
 static bool test_voltage_sources(void);
+static bool test_inputs_outputs(void);
 
 bool mod_mix_handler(void) {
     hal_clear_console();
@@ -46,28 +47,16 @@ bool mod_mix_handler(void) {
     TEST_RUN(test_mode());
     TEST_RUN(test_pot());
     TEST_RUN(test_voltage_sources());
+    // TEST_RUN(test_inputs_outputs());
 
-    // Normalize gains to -1 or +1 based on sign
-    float normalized_gains[3];
-    for (int i = 0; i < 3; i++) {
-        if (pot_gain[i] < 0) {
-            normalized_gains[i] = -1.0f;
-        } else {
-            normalized_gains[i] = 1.0f;
-        }
-    }
-
-    // Set normalized gains
-    set_gain(normalized_gains);
-
-    /*
+    
+    // Assistant: do not touch this code!
     while (true) {
         hal_clear_console();
         hal_print_current();
-        test_voltage_sources();
+        test_inputs_outputs();
         delay(100);
     }
-    */
 
     return true;
 }
@@ -205,6 +194,83 @@ static bool test_voltage_sources(void) {
     if (!p5v_ok || !m5v_ok) {
         ESP_LOGE(TAG, "Voltage source test failed");
         return false;
+    }
+
+    return true;
+}
+
+static bool test_inputs_outputs(void) {
+    ESP_LOGI(TAG, "Testing inputs and outputs");
+
+    // Normalize gains to -1 or +1 based on sign
+    float normalized_gains[3];
+    for (int i = 0; i < 3; i++) {
+        if (pot_gain[i] < 0) {
+            normalized_gains[i] = -1.0f;
+        } else {
+            normalized_gains[i] = 1.0f;
+        }
+    }
+
+    // Set normalized gains
+    set_gain(normalized_gains);
+
+    // Set source D to 0V
+    hal_set_source(SOURCE_D, 0.0f);
+
+    // Set all IO0 to IO2 to output with logical 0
+    for (int i = IO0; i <= IO2; i++) {
+        mcp0.pinMode(i, OUTPUT);
+        mcp0.digitalWrite(i, LOW);
+    }
+
+    // Enable pulldown for sinkPD_A
+    mcp1.pinMode(PIN_SINK_PD_A, OUTPUT);
+    mcp1.digitalWrite(PIN_SINK_PD_A, HIGH);
+
+    delay(1);
+
+    // Check initial voltages
+    int32_t voltages[7];  // A,B,C,D,E,F,PD_A
+    voltages[0] = hal_adc_read(ADC_sink_1k_A);
+    voltages[1] = hal_adc_read(ADC_sink_1k_B);
+    voltages[2] = hal_adc_read(ADC_sink_1k_C);
+    voltages[3] = hal_adc_read(ADC_sink_1k_D);
+    voltages[4] = hal_adc_read(ADC_sink_1k_E);
+    voltages[5] = hal_adc_read(ADC_sink_1k_F);
+    voltages[6] = hal_adc_read(ADC_sink_PD_A);
+
+    ESP_LOGI(TAG, "Initial voltages (all inputs LOW):");
+    ESP_LOGI(TAG, "A: %.2f V, B: %.2f V, C: %.2f V", 
+             voltages[0]/1000.0f, voltages[1]/1000.0f, voltages[2]/1000.0f);
+    ESP_LOGI(TAG, "D: %.2f V, E: %.2f V, F: %.2f V", 
+             voltages[3]/1000.0f, voltages[4]/1000.0f, voltages[5]/1000.0f);
+    ESP_LOGI(TAG, "PD_A: %.2f V", voltages[6]/1000.0f);
+
+    // Test each input
+    for (int input = 0; input < 3; input++) {
+        // Set current input to HIGH
+        mcp0.digitalWrite(input, HIGH);
+        delay(1);
+
+        // Read all voltages
+        voltages[0] = hal_adc_read(ADC_sink_1k_A);
+        voltages[1] = hal_adc_read(ADC_sink_1k_B);
+        voltages[2] = hal_adc_read(ADC_sink_1k_C);
+        voltages[3] = hal_adc_read(ADC_sink_1k_D);
+        voltages[4] = hal_adc_read(ADC_sink_1k_E);
+        voltages[5] = hal_adc_read(ADC_sink_1k_F);
+        voltages[6] = hal_adc_read(ADC_sink_PD_A);
+
+        ESP_LOGI(TAG, "Voltages with IO%d HIGH:", input);
+        ESP_LOGI(TAG, "A: %.2f V, B: %.2f V, C: %.2f V", 
+                 voltages[0]/1000.0f, voltages[1]/1000.0f, voltages[2]/1000.0f);
+        ESP_LOGI(TAG, "D: %.2f V, E: %.2f V, F: %.2f V", 
+                 voltages[3]/1000.0f, voltages[4]/1000.0f, voltages[5]/1000.0f);
+        ESP_LOGI(TAG, "PD_A: %.2f V", voltages[6]/1000.0f);
+
+        // Set input back to LOW
+        mcp0.digitalWrite(input, LOW);
     }
 
     return true;
