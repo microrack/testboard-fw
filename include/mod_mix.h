@@ -1,5 +1,7 @@
 #pragma once
 
+#include "hal.h"
+
 typedef enum {
     MODE_UNI,
     MODE_BI
@@ -14,4 +16,6 @@ extern mix_mode_t current_mode;
  * It is called when a module with ID MODULE_ID_MIX is detected.
  * @return true if the test was successful, false otherwise
  */
-bool mod_mix_handler(void); 
+bool mod_mix_handler(void);
+
+void set_gain(float input_gains[3]); 
