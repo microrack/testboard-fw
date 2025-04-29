@@ -12,7 +12,7 @@ const int LED_BI = IO3;
 const int LED_UNI = IO4;
 
 // Voltage ranges
-const range_t BI_VOLTAGE_RANGE = {-5.1f, 5.1f};
+const range_t UNI_VOLTAGE_RANGE = {-0.1f, 0.2f};
 const range_t P5V_SOURCE_RANGE = {4.9f, 5.1f};
 const range_t M5V_SOURCE_RANGE = {-5.1f, -4.1f};
 const float VOLTAGE_ACCURACY = 0.1f;  // Maximum allowed voltage difference between sinks
@@ -103,12 +103,12 @@ static bool test_mode(const mode_current_ranges_t& ranges) {
     if (current_bi_ma >= ranges.active.min && current_bi_ma <= ranges.active.max && 
         current_uni_ma >= ranges.inactive.min && current_uni_ma <= ranges.inactive.max) {
         ESP_LOGI(TAG, "Mode set to BI");
-        return true;
+        display_printf("push the button");
+        return false;
     } else if (current_bi_ma >= ranges.inactive.min && current_bi_ma <= ranges.inactive.max && 
                current_uni_ma >= ranges.active.min && current_uni_ma <= ranges.active.max) {
         ESP_LOGI(TAG, "Mode set to UNI");
-        display_printf("push the button");
-        return false;
+        return true;
     }
 
     ESP_LOGE(TAG, "Invalid current combination:\nBI: %.2f mA\nUNI: %.2f mA", 
@@ -134,19 +134,19 @@ static bool test_pot(void) {
     ESP_LOGI(TAG, "Pot voltages:\nD: %.2f V\nE: %.2f V\nF: %.2f V", v_d, v_e, v_f);
 
     // Check voltage ranges for BI mode
-    if (v_d < BI_VOLTAGE_RANGE.min || v_d > BI_VOLTAGE_RANGE.max) {
+    if (v_d < UNI_VOLTAGE_RANGE.min || v_d > UNI_VOLTAGE_RANGE.max) {
         ESP_LOGE(TAG, "Voltage out of range in BI mode");
-        display_printf("Pot D voltage out of range\n%.2f V", v_d);
+        display_printf("Pot 1 voltage out of range\n%.2f V", v_d);
         return false;
     }
-    if (v_e < BI_VOLTAGE_RANGE.min || v_e > BI_VOLTAGE_RANGE.max) {
+    if (v_e < UNI_VOLTAGE_RANGE.min || v_e > UNI_VOLTAGE_RANGE.max) {
         ESP_LOGE(TAG, "Voltage out of range in BI mode");
-        display_printf("Pot E voltage out of range\n%.2f V", v_e);
+        display_printf("Pot 2 voltage out of range\n%.2f V", v_e);
         return false;
     }
-    if (v_f < BI_VOLTAGE_RANGE.min || v_f > BI_VOLTAGE_RANGE.max) {
+    if (v_f < UNI_VOLTAGE_RANGE.min || v_f > UNI_VOLTAGE_RANGE.max) {
         ESP_LOGE(TAG, "Voltage out of range in BI mode");
-        display_printf("Pot F voltage out of range\n%.2f V", v_f);
+        display_printf("Pot 3 voltage out of range\n%.2f V", v_f);
         return false;
     }
 
