@@ -311,6 +311,6 @@ uint8_t hal_adapter_id() {
         id |= (mcp1.digitalRead(i) ? 1 : 0) << (4-i);
     }
     
-    ESP_LOGI(TAG, "Adapter ID: 0x%02X", id);
+    ESP_LOGD(TAG, "Adapter ID: 0x%02X", id);
     return id;
 } 
