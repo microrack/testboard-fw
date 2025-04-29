@@ -65,8 +65,8 @@ void setup() {
     // Console output
     ESP_LOGI(TAG, "Hello, Microrack!");
 
-    mcp1.digitalWrite(PIN_LED1, HIGH);
-    mcp1.digitalWrite(PIN_LED2, HIGH);
+    mcp1.digitalWrite(PIN_LED_OK, HIGH);
+    mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
 
     // Read and display adapter ID
     uint8_t id = hal_adapter_id();
@@ -80,8 +80,8 @@ void loop() {
     static bool state = false;
 
     // Keep LEDs on constantly
-    mcp1.digitalWrite(PIN_LED1, state);
-    mcp1.digitalWrite(PIN_LED2, state);
+    mcp1.digitalWrite(PIN_LED_OK, state);
+    mcp1.digitalWrite(PIN_LED_FAIL, state);
 
     // Control all MCP0 pins
     for(int i = 0; i < 16; i++) {

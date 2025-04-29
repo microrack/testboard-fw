@@ -106,11 +106,16 @@ void mcp_init() {
     }
 
     // Configure MCP1 pins
-    mcp1.pinMode(PIN_LED1, OUTPUT);
-    mcp1.pinMode(PIN_LED2, OUTPUT);
+    mcp1.pinMode(PIN_LED_OK, OUTPUT);
+    mcp1.pinMode(PIN_LED_FAIL, OUTPUT);
     mcp1.pinMode(PIN_P12V_PASS, INPUT);
     mcp1.pinMode(PIN_P5V_PASS, INPUT);
     mcp1.pinMode(PIN_M12V_PASS, INPUT);
+
+    // Configure PD sink pins as outputs
+    mcp1.pinMode(PIN_SINK_PD_A, OUTPUT);
+    mcp1.pinMode(PIN_SINK_PD_B, OUTPUT);
+    mcp1.pinMode(PIN_SINK_PD_C, OUTPUT);
 
     // Configure ID pins (GPA0-GPA4) with pullup
     for(int i = 0; i < 5; i++) {

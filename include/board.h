@@ -33,12 +33,17 @@ const int MCP_ADDR_1 = 0x21;
 
 // MCP23X17 pin definitions
 const int GPB = 8;
-const int PIN_LED1 = GPB + 3;
-const int PIN_LED2 = GPB + 4;
+const int PIN_LED_OK = GPB + 3;
+const int PIN_LED_FAIL = GPB + 4;
 
 const int PIN_P12V_PASS = GPB + 0;
 const int PIN_P5V_PASS = GPB + 1;
-const int PIN_M12V_PASS = GPB + 2; 
+const int PIN_M12V_PASS = GPB + 2;
+
+// PD sink pins on MCP1
+const int PIN_SINK_PD_A = GPB + 5;
+const int PIN_SINK_PD_B = GPB + 6;
+const int PIN_SINK_PD_C = GPB + 7;
 
 typedef enum {
     ADC_sink_1k_A,
