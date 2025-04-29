@@ -11,6 +11,12 @@ static const char* TAG = "mod_mix";
 const int LED_BI = IO3;
 const int LED_UNI = IO4;
 
+// Voltage range constants
+const float UNI_VOLTAGE_MIN = -0.1f;
+const float UNI_VOLTAGE_MAX = 5.1f;
+const float BI_VOLTAGE_MIN = -5.1f;
+const float BI_VOLTAGE_MAX = 5.1f;
+
 mix_mode_t current_mode = MODE_UNI;  // Default mode
 float gain[3] = {0.0f, 0.0f, 0.0f};  // Global gain array for D, E, F pots
 
@@ -123,13 +129,17 @@ static bool check_pot(void) {
     // Check voltage ranges based on mode
     if (current_mode == MODE_UNI) {
         // In UNI mode, voltages should be between 0 and 5V
-        if (v_d < 0.0f || v_d > 5.0f || v_e < 0.0f || v_e > 5.0f || v_f < 0.0f || v_f > 5.0f) {
+        if (v_d < UNI_VOLTAGE_MIN || v_d > UNI_VOLTAGE_MAX || 
+            v_e < UNI_VOLTAGE_MIN || v_e > UNI_VOLTAGE_MAX || 
+            v_f < UNI_VOLTAGE_MIN || v_f > UNI_VOLTAGE_MAX) {
             ESP_LOGE(TAG, "Voltage out of range in UNI mode");
             return false;
         }
     } else {
         // In BI mode, voltages should be between -5 and 5V
-        if (v_d < -5.0f || v_d > 5.0f || v_e < -5.0f || v_e > 5.0f || v_f < -5.0f || v_f > 5.0f) {
+        if (v_d < BI_VOLTAGE_MIN || v_d > BI_VOLTAGE_MAX || 
+            v_e < BI_VOLTAGE_MIN || v_e > BI_VOLTAGE_MAX || 
+            v_f < BI_VOLTAGE_MIN || v_f > BI_VOLTAGE_MAX) {
             ESP_LOGE(TAG, "Voltage out of range in BI mode");
             return false;
         }
