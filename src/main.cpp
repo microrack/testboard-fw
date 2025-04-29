@@ -62,29 +62,10 @@ void loop() {
 
     mcp1.digitalWrite(PIN_LED_FAIL, LOW);
 
-    // Retry test until it passes or module is removed
-    bool test_passed = false;
-    while (!test_passed) {
-        // Call appropriate module handler
-        if(module->handler()) {
-            mcp1.digitalWrite(PIN_LED_OK, HIGH);
-            mcp1.digitalWrite(PIN_LED_FAIL, LOW);
-            display_printf("Module OK");
-            test_passed = true;
-        } else {
-            mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-            mcp1.digitalWrite(PIN_LED_OK, LOW);
-            display_printf("Module FAIL - Retrying...");
-            
-            // Check if module is still present
-            power_rails_state_t rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
-            if (rails_state != POWER_RAILS_ALL) {
-                ESP_LOGI(TAG, "Module removed during retry");
-                break;
-            }
-            
-            delay(100); // Wait before retrying
-        }
+    if(module->handler()) {
+        mcp1.digitalWrite(PIN_LED_OK, HIGH);
+        mcp1.digitalWrite(PIN_LED_FAIL, LOW);
+        display_printf("Module OK");
     }
 
     // Step 6.3: Wait for module removal

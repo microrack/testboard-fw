@@ -1,11 +1,20 @@
 #pragma once
 
 #include "hal.h"
+#include "test_helpers.h"
 
 typedef enum {
     MODE_UNI,
     MODE_BI
 } mix_mode_t;
+
+/**
+ * @brief Structure defining current ranges for mode detection
+ */
+typedef struct {
+    range_t active;    // Current range for active mode in mA
+    range_t inactive;  // Current range for inactive mode in mA
+} mode_current_ranges_t;
 
 /**
  * @brief Handler for mod_mix module testing

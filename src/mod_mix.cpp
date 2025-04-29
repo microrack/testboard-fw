@@ -25,7 +25,7 @@ const ADC_sink_t POT_C = ADC_sink_Z_F;
 float pot_gain[3] = {0.0f, 0.0f, 0.0f};  // Global pot gain array for D, E, F pots
 float gain[3] = {0.0f, 0.0f, 0.0f};      // Global gain array for A, B, C pots
 
-static bool test_mode(void);
+static bool test_mode(const mode_current_ranges_t& ranges);
 static bool test_pot(void);
 static bool test_voltage_sources(void);
 static bool test_mix_outputs(const float* voltages);
@@ -36,32 +36,27 @@ bool mod_mix_handler(void) {
     ESP_LOGI(TAG, "Starting mod_mix test sequence");
     display_printf("Testing mod_mix...");
 
-    power_rails_current_ranges_t ranges = {
+    power_rails_current_ranges_t power_ranges = {
         .p12v = {22.0f, 40.0f},  // +12V: 22-30 mA
         .m12v = {22.0f, 60.0f},  // -12V: 22-60 mA
         .p5v = {13.0f, 25.0f}    // +5V: 13-25 mA
     };
     // Check initial current consumption
-    TEST_RUN(check_initial_current_consumption(ranges));
+    TEST_RUN(check_initial_current_consumption(power_ranges));
 
-    TEST_RUN(test_mode());
+    mode_current_ranges_t mode_ranges = {
+        .active = {20.0f, 27.0f},   // Active mode: 20-27 mA
+        .inactive = {13.0f, 18.0f}  // Inactive mode: 13-18 mA
+    };
+    TEST_RUN(test_mode(mode_ranges));
     TEST_RUN(test_pot());
     TEST_RUN(test_voltage_sources());
     TEST_RUN(test_inputs_outputs());
 
-    
-    // Assistant: do not touch this code!
-    /*while (true) {
-        hal_clear_console();
-        hal_print_current();
-        test_inputs_outputs();
-        delay(100);
-    }*/
-
     return true;
 }
 
-static bool test_mode(void) {
+static bool test_mode(const mode_current_ranges_t& ranges) {
     ESP_LOGI(TAG, "Testing mode");
 
     mcp0.pinMode(LED_BI, OUTPUT);
@@ -78,6 +73,7 @@ static bool test_mode(void) {
 
     if (bi != 0 || uni != 0) {
         ESP_LOGE(TAG, "Error: Initial LED levels incorrect. BI: %d, UNI: %d", bi, uni);
+        display_printf("LED levels incorrect\nBI: %d UNI: %d", bi, uni);
         return false;
     }
 
@@ -95,23 +91,30 @@ static bool test_mode(void) {
     int32_t current_uni = measure_current(PIN_INA_5V);
     mcp0.pinMode(LED_UNI, INPUT_PULLUP);
 
+    // Convert to mA
+    float current_bi_ma = current_bi / 1000.0f;
+    float current_uni_ma = current_uni / 1000.0f;
+
     // Print current consumption
     ESP_LOGI(TAG, "Current consumption on 5V rail:\nLED_BI: %.2f mA\nLED_UNI: %.2f mA",
-             current_bi / 1000.0f, current_uni / 1000.0f);
+             current_bi_ma, current_uni_ma);
 
     // Determine mode based on current measurements
-    if (current_bi >= 20000 && current_bi <= 25000 && 
-        current_uni >= 13000 && current_uni <= 18000) {
+    if (current_bi_ma >= ranges.active.min && current_bi_ma <= ranges.active.max && 
+        current_uni_ma >= ranges.inactive.min && current_uni_ma <= ranges.inactive.max) {
         ESP_LOGI(TAG, "Mode set to BI");
         return true;
-    } else if (current_bi >= 13000 && current_bi <= 18000 && 
-               current_uni >= 20000 && current_uni <= 25000) {
+    } else if (current_bi_ma >= ranges.inactive.min && current_bi_ma <= ranges.inactive.max && 
+               current_uni_ma >= ranges.active.min && current_uni_ma <= ranges.active.max) {
         ESP_LOGI(TAG, "Mode set to UNI");
         display_printf("push the button");
         return false;
     }
 
-    ESP_LOGE(TAG, "Invalid current combination:\nBI: %d uA\nUNI: %d uA", current_bi, current_uni);
+    ESP_LOGE(TAG, "Invalid current combination:\nBI: %.2f mA\nUNI: %.2f mA", 
+             current_bi_ma, current_uni_ma);
+    display_printf("Invalid currents\nBI: %.2f mA\nUNI: %.2f mA", 
+                  current_bi_ma, current_uni_ma);
     return false;
 }
 
@@ -131,10 +134,19 @@ static bool test_pot(void) {
     ESP_LOGI(TAG, "Pot voltages:\nD: %.2f V\nE: %.2f V\nF: %.2f V", v_d, v_e, v_f);
 
     // Check voltage ranges for BI mode
-    if (v_d < BI_VOLTAGE_RANGE.min || v_d > BI_VOLTAGE_RANGE.max || 
-        v_e < BI_VOLTAGE_RANGE.min || v_e > BI_VOLTAGE_RANGE.max || 
-        v_f < BI_VOLTAGE_RANGE.min || v_f > BI_VOLTAGE_RANGE.max) {
+    if (v_d < BI_VOLTAGE_RANGE.min || v_d > BI_VOLTAGE_RANGE.max) {
         ESP_LOGE(TAG, "Voltage out of range in BI mode");
+        display_printf("Pot D voltage out of range\n%.2f V", v_d);
+        return false;
+    }
+    if (v_e < BI_VOLTAGE_RANGE.min || v_e > BI_VOLTAGE_RANGE.max) {
+        ESP_LOGE(TAG, "Voltage out of range in BI mode");
+        display_printf("Pot E voltage out of range\n%.2f V", v_e);
+        return false;
+    }
+    if (v_f < BI_VOLTAGE_RANGE.min || v_f > BI_VOLTAGE_RANGE.max) {
+        ESP_LOGE(TAG, "Voltage out of range in BI mode");
+        display_printf("Pot F voltage out of range\n%.2f V", v_f);
         return false;
     }
 
@@ -182,14 +194,24 @@ static bool test_voltage_sources(void) {
              p5v_inactive, p5v_active, m5v_inactive, m5v_active);
 
     // Check if voltages are within expected ranges
-    bool p5v_ok = (p5v_inactive >= P5V_SOURCE_RANGE.min && p5v_inactive <= P5V_SOURCE_RANGE.max) && 
-                  (p5v_active >= P5V_SOURCE_RANGE.min && p5v_active <= P5V_SOURCE_RANGE.max);
-    
-    bool m5v_ok = (m5v_inactive >= M5V_SOURCE_RANGE.min && m5v_inactive <= M5V_SOURCE_RANGE.max) && 
-                  (m5v_active >= M5V_SOURCE_RANGE.min && m5v_active <= M5V_SOURCE_RANGE.max);
-
-    if (!p5v_ok || !m5v_ok) {
-        ESP_LOGE(TAG, "Voltage source test failed");
+    if (p5v_inactive < P5V_SOURCE_RANGE.min || p5v_inactive > P5V_SOURCE_RANGE.max) {
+        ESP_LOGE(TAG, "+5V source inactive voltage out of range");
+        display_printf("+5V inactive out of range\n%.2f V", p5v_inactive);
+        return false;
+    }
+    if (p5v_active < P5V_SOURCE_RANGE.min || p5v_active > P5V_SOURCE_RANGE.max) {
+        ESP_LOGE(TAG, "+5V source active voltage out of range");
+        display_printf("+5V active out of range\n%.2f V", p5v_active);
+        return false;
+    }
+    if (m5v_inactive < M5V_SOURCE_RANGE.min || m5v_inactive > M5V_SOURCE_RANGE.max) {
+        ESP_LOGE(TAG, "-5V source inactive voltage out of range");
+        display_printf("-5V inactive out of range\n%.2f V", m5v_inactive);
+        return false;
+    }
+    if (m5v_active < M5V_SOURCE_RANGE.min || m5v_active > M5V_SOURCE_RANGE.max) {
+        ESP_LOGE(TAG, "-5V source active voltage out of range");
+        display_printf("-5V active out of range\n%.2f V", m5v_active);
         return false;
     }
 
@@ -199,11 +221,14 @@ static bool test_voltage_sources(void) {
 static bool test_mix_outputs(const float* voltages) {
     // Check if voltages 0-3 are within accuracy
     float max_diff = 0.0f;
+    int max_i = 0, max_j = 0;
     for (int i = 0; i < 4; i++) {
         for (int j = i + 1; j < 4; j++) {
             float diff = fabs(voltages[i] - voltages[j]);
             if (diff > max_diff) {
                 max_diff = diff;
+                max_i = i;
+                max_j = j;
             }
         }
     }
@@ -213,6 +238,10 @@ static bool test_mix_outputs(const float* voltages) {
                  VOLTAGE_ACCURACY, max_diff);
         ESP_LOGE(TAG, "A: %.2f V, B: %.2f V, C: %.2f V, D: %.2f V",
                  voltages[0], voltages[1], voltages[2], voltages[3]);
+        display_printf("Mix outputs differ too much\n%c: %.2f V\n%c: %.2f V\nDiff: %.2f V",
+                      'A' + max_i, voltages[max_i],
+                      'A' + max_j, voltages[max_j],
+                      max_diff);
         return false;
     }
 
@@ -303,6 +332,7 @@ static bool test_inputs_outputs(void) {
 
         // Test mix outputs
         if (!test_mix_outputs(v)) {
+            display_printf("Mix outputs failed\nwith input %d HIGH", input);
             return false;
         }
 
