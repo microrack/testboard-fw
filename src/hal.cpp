@@ -25,10 +25,23 @@ static int32_t ref_adc_values[ADC_sink_count] = {0};
 #define MEDIAN_FILTER_SIZE 15
 
 void hal_init() {
+    // Initialize serial port
+    Serial.begin(115200);
+    delay(1000);  // Small delay for startup
+
+    // Initialize ESP logging
+    esp_log_level_set("*", ESP_LOG_DEBUG);
+    esp_log_level_set("hal", ESP_LOG_INFO);  // Set log level for hal tag
+
     // Initialize ADC pins
     for(ADC_sink_t idx = (ADC_sink_t)0; idx < ADC_sink_count; idx = (ADC_sink_t)(idx + 1)) {
         pinMode(ADC_PINS[idx], INPUT);
     }
+
+    // Configure INA196A pins as inputs
+    pinMode(PIN_INA_12V, INPUT);
+    pinMode(PIN_INA_5V, INPUT);
+    pinMode(PIN_INA_M12V, INPUT);
 
     // Initialize DAC
     dac_init();
@@ -36,11 +49,11 @@ void hal_init() {
     // Initialize MCP
     mcp_init();
 
-    // Calibrate ADC
-    hal_adc_calibrate();
+    // Turn on both LEDs to indicate startup
+    mcp1.digitalWrite(PIN_LED_OK, HIGH);
+    mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
 
-    // Calibrate current measurements
-    hal_current_calibrate();
+    ESP_LOGI(TAG, "Hardware initialization complete");
 }
 
 void dac_init() {

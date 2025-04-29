@@ -25,14 +25,6 @@ static bool pd_state_b = false;
 static bool pd_state_c = false;
 
 void setup() {
-    // Initialize serial port
-    Serial.begin(115200);
-    delay(1000);  // Small delay for startup
-
-    // Initialize ESP logging
-    esp_log_level_set("*", ESP_LOG_DEBUG);
-    esp_log_level_set("hal", ESP_LOG_INFO);  // Set log level for hal tag
-
     // Initialize hardware abstraction layer
     hal_init();
 
@@ -42,25 +34,7 @@ void setup() {
         for(;;); // Don't proceed, loop forever
     }
 
-    // Initialize MCP IO expanders
-    mcp_init();
-
-    // Initialize DAC
-    dac_init();
-
-    // Configure INA196A pins as inputs
-    pinMode(PIN_INA_12V, INPUT);
-    pinMode(PIN_INA_5V, INPUT);
-    pinMode(PIN_INA_M12V, INPUT);
-
     ESP_LOGI(TAG, "Hello, Microrack!");
-
-    mcp1.digitalWrite(PIN_LED_OK, HIGH);
-    mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-
-    // Read and display adapter ID
-    uint8_t id = hal_adapter_id();
-    display_printf("Adapter ID: 0x%02X", id);
 
     // Perform startup sequence
     if (!perform_startup_sequence()) {
