@@ -12,15 +12,25 @@ const int LED_BI = IO3;
 const int LED_UNI = IO4;
 
 mix_mode_t current_mode = MODE_UNI;  // Default mode
+float gain[3] = {0.0f, 0.0f, 0.0f};  // Global gain array for D, E, F pots
 
 static bool test_mode(void);
+static bool check_pot(void);
+
 bool mod_mix_handler(void) {
     ESP_LOGI(TAG, "Starting mod_mix test sequence");
     display_printf("Testing mod_mix...");
 
+    while (true) {
+        hal_clear_console();
+        hal_print_current();
+        check_pot();
+        delay(100);
+    }
+
     power_rails_current_ranges_t ranges = {
         .p12v = {22000, 30000},  // +12V: 22-30 mA
-        .m12v = {22000, 30000},  // -12V: 22-30 mA
+        .m12v = {22000, 60000},  // -12V: 22-30 mA
         .p5v = {13000, 25000}    // +5V: 13-25 mA
     };
     // Check initial current consumption
@@ -93,4 +103,43 @@ static bool test_mode(void) {
 
     ESP_LOGE(TAG, "Invalid current combination:\nBI: %d uA\nUNI: %d uA", current_bi, current_uni);
     return false;
+}
+
+static bool check_pot(void) {
+    ESP_LOGI(TAG, "Checking pot voltages");
+
+    // Measure voltages for sinks D, E, F
+    int32_t voltage_d = hal_adc_read(ADC_sink_Z_D);
+    int32_t voltage_e = hal_adc_read(ADC_sink_Z_E);
+    int32_t voltage_f = hal_adc_read(ADC_sink_Z_F);
+
+    // Convert to volts
+    float v_d = voltage_d / 1000.0f;
+    float v_e = voltage_e / 1000.0f;
+    float v_f = voltage_f / 1000.0f;
+
+    ESP_LOGI(TAG, "Pot voltages:\nD: %.2f V\nE: %.2f V\nF: %.2f V", v_d, v_e, v_f);
+
+    // Check voltage ranges based on mode
+    if (current_mode == MODE_UNI) {
+        // In UNI mode, voltages should be between 0 and 5V
+        if (v_d < 0.0f || v_d > 5.0f || v_e < 0.0f || v_e > 5.0f || v_f < 0.0f || v_f > 5.0f) {
+            ESP_LOGE(TAG, "Voltage out of range in UNI mode");
+            return false;
+        }
+    } else {
+        // In BI mode, voltages should be between -5 and 5V
+        if (v_d < -5.0f || v_d > 5.0f || v_e < -5.0f || v_e > 5.0f || v_f < -5.0f || v_f > 5.0f) {
+            ESP_LOGE(TAG, "Voltage out of range in BI mode");
+            return false;
+        }
+    }
+
+    // Calculate gains by mapping voltage range to -1..+1
+    gain[0] = v_d / 5.0f;
+    gain[1] = v_e / 5.0f;
+    gain[2] = v_f / 5.0f;
+
+    ESP_LOGI(TAG, "Calculated gains:\nD: %.2f\nE: %.2f\nF: %.2f", gain[0], gain[1], gain[2]);
+    return true;
 }
