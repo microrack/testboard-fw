@@ -11,10 +11,9 @@
 #include "board.h"
 #include "hal.h"
 #include "test_helpers.h"
+#include "display.h"
 
 static const char* TAG = "main";
-
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // External objects from hal.cpp
 extern DAC8552 dac1;
@@ -37,20 +36,11 @@ void setup() {
     // Initialize hardware abstraction layer
     hal_init();
 
-    // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-    if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-        ESP_LOGE(TAG, "SSD1306 allocation failed");
+    // Initialize display
+    if (!display_init()) {
+        ESP_LOGE(TAG, "Failed to initialize display");
         for(;;); // Don't proceed, loop forever
     }
-
-    display.setTextSize(1);      // Normal 1:1 pixel scale
-    display.setTextColor(SSD1306_WHITE); // Draw white text
-    display.cp437(true);         // Use full 256 char 'Code Page 437' font
-    display.setRotation(0);
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.printf("Hello, Microrack!\n");
-    display.display();
 
     // Initialize MCP IO expanders
     mcp_init();
@@ -63,7 +53,6 @@ void setup() {
     pinMode(PIN_INA_5V, INPUT);
     pinMode(PIN_INA_M12V, INPUT);
 
-    // Console output
     ESP_LOGI(TAG, "Hello, Microrack!");
 
     mcp1.digitalWrite(PIN_LED_OK, HIGH);
@@ -71,8 +60,7 @@ void setup() {
 
     // Read and display adapter ID
     uint8_t id = hal_adapter_id();
-    display.printf("Adapter ID: 0x%02X\n", id);
-    display.display();
+    display_printf("Adapter ID: 0x%02X", id);
 }
 
 void loop() {
@@ -83,11 +71,7 @@ void loop() {
     // Step 2: Wait for adapter
     uint8_t adapter_id = hal_adapter_id();
     if (adapter_id == 0b11111) {
-        ESP_LOGI(TAG, "Waiting for adapter...");
-        display.clearDisplay();
-        display.setCursor(0, 0);
-        display.printf("Waiting for adapter...");
-        display.display();
+        display_printf("Waiting for adapter...");
 
         while (hal_adapter_id() == 0b11111) {
             delay(100);
@@ -96,22 +80,14 @@ void loop() {
     }
 
     // Adapter detected
-    ESP_LOGI(TAG, "Adapter detected: 0x%02X", adapter_id);
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.printf("Adapter ID: 0x%02X", adapter_id);
-    display.display();
+    display_printf("Adapter detected: 0x%02X", adapter_id);
 
     // Step 4: Wait for module removal for calibration
     bool p12v_ok, p5v_ok, m12v_ok;
     power_rails_state_t rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
 
     if (rails_state != POWER_RAILS_NONE) {
-        ESP_LOGI(TAG, "Waiting for calibration, remove module");
-        display.clearDisplay();
-        display.setCursor(0, 0);
-        display.printf("Remove module for calibration");
-        display.display();
+        display_printf("Remove module for calibration");
 
         do {
             rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
@@ -120,11 +96,7 @@ void loop() {
     }
 
     // Step 5: Perform calibration
-    ESP_LOGI(TAG, "Performing calibration...");
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.printf("Calibrating...");
-    display.display();
+    display_printf("Calibrating...");
     
     hal_current_calibrate();
     hal_adc_calibrate();
@@ -135,11 +107,7 @@ void loop() {
     while (1) {
         // Step 6.1: Turn on fail LED and wait for module
         mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-        ESP_LOGI(TAG, "Waiting for module...");
-        display.clearDisplay();
-        display.setCursor(0, 0);
-        display.printf("Waiting for module...");
-        display.display();
+        display_printf("Waiting for module...");
 
         do {
             rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
@@ -152,17 +120,8 @@ void loop() {
         int32_t current_5v = measure_current(PIN_INA_5V);
         int32_t current_m12v = measure_current(PIN_INA_M12V);
 
-        ESP_LOGI(TAG, "Current measurements:");
-        ESP_LOGI(TAG, "+12V: %d uA", current_12v);
-        ESP_LOGI(TAG, "+5V: %d uA", current_5v);
-        ESP_LOGI(TAG, "-12V: %d uA", current_m12v);
-
-        display.clearDisplay();
-        display.setCursor(0, 0);
-        display.printf("+12V: %d uA\n", current_12v);
-        display.printf("+5V: %d uA\n", current_5v);
-        display.printf("-12V: %d uA", current_m12v);
-        display.display();
+        display_printf("+12V: %d uA\n+5V: %d uA\n-12V: %d uA", 
+            current_12v, current_5v, current_m12v);
 
         mcp1.digitalWrite(PIN_LED_FAIL, LOW);
         mcp1.digitalWrite(PIN_LED_OK, HIGH);
