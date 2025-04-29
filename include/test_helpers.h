@@ -129,4 +129,11 @@ bool test_pin_range(ADC_sink_t pin, const range_t& range, const char* pin_name);
  */
 bool test_pin_pd(const voltage_source_t& source, 
                 const range_t& hiz_range, const range_t& pd_range,
-                const char* source_name); 
+                const char* source_name);
+
+typedef struct {
+    range_t active;
+    range_t inactive;
+} mode_current_ranges_t;
+
+bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges_t& ranges, int* output_mode); 

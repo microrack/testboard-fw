@@ -110,14 +110,20 @@ bool check_initial_current_consumption(const power_rails_current_ranges_t& range
     if (!p12v_ok) {
         ESP_LOGE(TAG, "+12V current out of range: %.2f mA (expected %.2f-%.2f mA)",
                  p12v_ma, ranges.p12v.min, ranges.p12v.max);
+        display_printf("+12V current out of range\n%.2f mA (%.2f-%.2f mA)",
+                      p12v_ma, ranges.p12v.min, ranges.p12v.max);
     }
     if (!m12v_ok) {
         ESP_LOGE(TAG, "-12V current out of range: %.2f mA (expected %.2f-%.2f mA)",
                  m12v_ma, ranges.m12v.min, ranges.m12v.max);
+        display_printf("-12V current out of range\n%.2f mA (%.2f-%.2f mA)",
+                      m12v_ma, ranges.m12v.min, ranges.m12v.max);
     }
     if (!p5v_ok) {
         ESP_LOGE(TAG, "+5V current out of range: %.2f mA (expected %.2f-%.2f mA)",
                  p5v_ma, ranges.p5v.min, ranges.p5v.max);
+        display_printf("+5V current out of range\n%.2f mA (%.2f-%.2f mA)",
+                      p5v_ma, ranges.p5v.min, ranges.p5v.max);
     }
 
     return p12v_ok && m12v_ok && p5v_ok;
@@ -180,4 +186,67 @@ bool test_pin_pd(const voltage_source_t& source,
     }
 
     return true;
+}
+
+bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges_t& ranges, int* output_mode) {
+    ESP_LOGI(TAG, "Testing mode");
+
+    mcp0.pinMode(led_pin1, OUTPUT);
+    mcp0.digitalWrite(led_pin1, LOW);
+    mcp0.pinMode(led_pin2, OUTPUT);
+    mcp0.digitalWrite(led_pin2, LOW);
+    delay(1);
+    mcp0.pinMode(led_pin1, INPUT_PULLUP);
+    mcp0.pinMode(led_pin2, INPUT_PULLUP);
+
+    // Check initial levels - both should be 0
+    bool pin1 = mcp0.digitalRead(led_pin1);
+    bool pin2 = mcp0.digitalRead(led_pin2);
+
+    if (pin1 != 0 || pin2 != 0) {
+        ESP_LOGE(TAG, "Error: Initial LED levels incorrect. Pin1: %d, Pin2: %d", pin1, pin2);
+        display_printf("LED levels incorrect\nPin1: %d Pin2: %d", pin1, pin2);
+        return false;
+    }
+
+    // Test first pin
+    mcp0.pinMode(led_pin1, OUTPUT);
+    mcp0.digitalWrite(led_pin1, LOW);
+    delay(10);  // Wait for current to stabilize
+    int32_t current_pin1 = measure_current(PIN_INA_5V);
+    mcp0.pinMode(led_pin1, INPUT_PULLUP);
+
+    // Test second pin
+    mcp0.pinMode(led_pin2, OUTPUT);
+    mcp0.digitalWrite(led_pin2, LOW);
+    delay(10);  // Wait for current to stabilize
+    int32_t current_pin2 = measure_current(PIN_INA_5V);
+    mcp0.pinMode(led_pin2, INPUT_PULLUP);
+
+    // Convert to mA
+    float current_pin1_ma = current_pin1 / 1000.0f;
+    float current_pin2_ma = current_pin2 / 1000.0f;
+
+    // Print current consumption
+    ESP_LOGI(TAG, "Current consumption on 5V rail:\nPin1: %.2f mA\nPin2: %.2f mA",
+             current_pin1_ma, current_pin2_ma);
+
+    // Determine mode based on current measurements
+    if (current_pin1_ma >= ranges.active.min && current_pin1_ma <= ranges.active.max && 
+        current_pin2_ma >= ranges.inactive.min && current_pin2_ma <= ranges.inactive.max) {
+        ESP_LOGI(TAG, "Mode set to Pin1 active");
+        if (output_mode) *output_mode = 0;
+        return true;
+    } else if (current_pin1_ma >= ranges.inactive.min && current_pin1_ma <= ranges.inactive.max && 
+               current_pin2_ma >= ranges.active.min && current_pin2_ma <= ranges.active.max) {
+        ESP_LOGI(TAG, "Mode set to Pin2 active");
+        if (output_mode) *output_mode = 1;
+        return true;
+    }
+
+    ESP_LOGE(TAG, "Invalid current combination:\nPin1: %.2f mA\nPin2: %.2f mA", 
+             current_pin1_ma, current_pin2_ma);
+    display_printf("Invalid currents\nPin1: %.2f mA\nPin2: %.2f mA", 
+                  current_pin1_ma, current_pin2_ma);
+    return false;
 } 
