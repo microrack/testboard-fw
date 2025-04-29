@@ -12,6 +12,7 @@
 #include "hal.h"
 #include "test_helpers.h"
 #include "display.h"
+#include "modules.h"
 
 static const char* TAG = "main";
 
@@ -51,14 +52,15 @@ void loop() {
     bool p12v_ok, p5v_ok, m12v_ok;
     wait_for_module_insertion(p12v_ok, p5v_ok, m12v_ok);
 
-    // Step 6.2: Module inserted, wait 100ms and measure
-    delay(100);
-    int32_t current_12v = measure_current(PIN_INA_12V);
-    int32_t current_5v = measure_current(PIN_INA_5V);
-    int32_t current_m12v = measure_current(PIN_INA_M12V);
+    // Get adapter ID and corresponding module info
+    uint8_t adapter_id = hal_adapter_id();
+    const module_info_t* module = get_module_info(adapter_id);
+    
+    ESP_LOGI(TAG, "Module detected: %s (ID: %d)", module->name, adapter_id);
+    display_printf("Module: %s", module->name);
 
-    display_printf("+12V: %d uA\n+5V: %d uA\n-12V: %d uA", 
-        current_12v, current_5v, current_m12v);
+    // Call appropriate module handler
+    module->handler();
 
     mcp1.digitalWrite(PIN_LED_FAIL, LOW);
     mcp1.digitalWrite(PIN_LED_OK, HIGH);
