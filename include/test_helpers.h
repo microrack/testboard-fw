@@ -4,6 +4,20 @@
 #include "hal.h"
 
 /**
+ * @brief Macro to execute a function and return false on failure
+ * 
+ * This macro executes the provided function and if it returns false,
+ * returns false from the caller function.
+ * 
+ * @param func The function to execute
+ */
+#define TEST_RUN(func) do { \
+    if (!func) { \
+        return false; \
+    } \
+} while(0)
+
+/**
  * @brief Macro to execute a function and retry on failure
  * 
  * This macro executes the provided function and if it returns false,
@@ -13,7 +27,7 @@
  * 
  * @param func The function to execute
  */
-#define TEST_RUN(func) do { \
+#define TEST_RUN_REPEAT(func) do { \
     if (!func) { \
         while (!func) { \
             mcp1.digitalWrite(PIN_LED_FAIL, HIGH); \
