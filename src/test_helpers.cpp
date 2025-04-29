@@ -5,11 +5,11 @@
 
 power_rails_state_t get_power_rails_state(bool& p12v_state, bool& p5v_state, bool& m12v_ok) {
     // Read power rail states from MCP
-    p12v_state = mcp0.digitalRead(PIN_P12V_PASS);
-    p5v_state = mcp0.digitalRead(PIN_P5V_PASS);
-    m12v_ok = mcp0.digitalRead(PIN_M12V_PASS); // Inverted signal
+    p12v_state = mcp1.digitalRead(PIN_P12V_PASS);
+    p5v_state = mcp1.digitalRead(PIN_P5V_PASS);
+    m12v_ok = !mcp1.digitalRead(PIN_M12V_PASS); // Inverted signal
 
-    ESP_LOGI("test_helpers", "Power rail states - +12V: %d, +5V: %d, -12V: %d", 
+    ESP_LOGD("test_helpers", "Power rail states - +12V: %d, +5V: %d, -12V: %d", 
              p12v_state, p5v_state, m12v_ok);
 
     // Count how many rails are connected
@@ -18,7 +18,7 @@ power_rails_state_t get_power_rails_state(bool& p12v_state, bool& p5v_state, boo
     if (p5v_state) connected_rails++;
     if (m12v_ok) connected_rails++;
 
-    ESP_LOGI("test_helpers", "Connected rails count: %d", connected_rails);
+    ESP_LOGD("test_helpers", "Connected rails count: %d", connected_rails);
 
     // Return appropriate state based on number of connected rails
     power_rails_state_t state;
