@@ -19,4 +19,11 @@ typedef enum {
  * @param m12v_state Output parameter for -12V rail state (true if OK)
  * @return power_rails_state_t indicating the overall state of power rails
  */
-power_rails_state_t get_power_rails_state(bool& p12v_state, bool& p5v_state, bool& m12v_state); 
+power_rails_state_t get_power_rails_state(bool& p12v_state, bool& p5v_state, bool& m12v_state);
+
+/**
+ * @brief Performs the startup sequence including adapter detection and calibration
+ * 
+ * @return true if startup was successful, false otherwise
+ */
+bool perform_startup_sequence(); 

@@ -61,77 +61,44 @@ void setup() {
     // Read and display adapter ID
     uint8_t id = hal_adapter_id();
     display_printf("Adapter ID: 0x%02X", id);
+
+    // Perform startup sequence
+    if (!perform_startup_sequence()) {
+        ESP_LOGE(TAG, "Startup sequence failed");
+        for(;;); // Don't proceed, loop forever
+    }
 }
 
 void loop() {
-    // Step 1: Switch off both LEDs
-    mcp1.digitalWrite(PIN_LED_OK, LOW);
-    mcp1.digitalWrite(PIN_LED_FAIL, LOW);
+    // Step 6.1: Turn on fail LED and wait for module
+    mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+    display_printf("Waiting for module...");
 
-    // Step 2: Wait for adapter
-    uint8_t adapter_id = hal_adapter_id();
-    if (adapter_id == 0b11111) {
-        display_printf("Waiting for adapter...");
-
-        while (hal_adapter_id() == 0b11111) {
-            delay(100);
-        }
-        adapter_id = hal_adapter_id();
-    }
-
-    // Adapter detected
-    display_printf("Adapter detected: 0x%02X", adapter_id);
-
-    // Step 4: Wait for module removal for calibration
     bool p12v_ok, p5v_ok, m12v_ok;
-    power_rails_state_t rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
-
-    if (rails_state != POWER_RAILS_NONE) {
-        display_printf("Remove module for calibration");
-
-        do {
-            rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
-            delay(100);
-        } while (rails_state != POWER_RAILS_NONE);
-    }
-
-    // Step 5: Perform calibration
-    display_printf("Calibrating...");
+    power_rails_state_t rails_state;
     
-    hal_current_calibrate();
-    hal_adc_calibrate();
-    
-    ESP_LOGI(TAG, "Calibration complete");
-
-    // Main measurement loop
-    while (1) {
-        // Step 6.1: Turn on fail LED and wait for module
-        mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-        display_printf("Waiting for module...");
-
-        do {
-            rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
-            delay(100);
-        } while (rails_state != POWER_RAILS_ALL);
-
-        // Step 6.2: Module inserted, wait 100ms and measure
+    do {
+        rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
         delay(100);
-        int32_t current_12v = measure_current(PIN_INA_12V);
-        int32_t current_5v = measure_current(PIN_INA_5V);
-        int32_t current_m12v = measure_current(PIN_INA_M12V);
+    } while (rails_state != POWER_RAILS_ALL);
 
-        display_printf("+12V: %d uA\n+5V: %d uA\n-12V: %d uA", 
-            current_12v, current_5v, current_m12v);
+    // Step 6.2: Module inserted, wait 100ms and measure
+    delay(100);
+    int32_t current_12v = measure_current(PIN_INA_12V);
+    int32_t current_5v = measure_current(PIN_INA_5V);
+    int32_t current_m12v = measure_current(PIN_INA_M12V);
 
-        mcp1.digitalWrite(PIN_LED_FAIL, LOW);
-        mcp1.digitalWrite(PIN_LED_OK, HIGH);
+    display_printf("+12V: %d uA\n+5V: %d uA\n-12V: %d uA", 
+        current_12v, current_5v, current_m12v);
 
-        // Step 6.3: Wait for module removal
-        do {
-            rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
-            delay(100);
-        } while (rails_state != POWER_RAILS_NONE);
+    mcp1.digitalWrite(PIN_LED_FAIL, LOW);
+    mcp1.digitalWrite(PIN_LED_OK, HIGH);
 
-        mcp1.digitalWrite(PIN_LED_OK, LOW);
-    }
+    // Step 6.3: Wait for module removal
+    do {
+        rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+        delay(100);
+    } while (rails_state != POWER_RAILS_NONE);
+
+    mcp1.digitalWrite(PIN_LED_OK, LOW);
 }
