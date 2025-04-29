@@ -16,6 +16,7 @@ const range_t UNI_VOLTAGE_RANGE = {-0.1f, 5.1f};
 const range_t BI_VOLTAGE_RANGE = {-5.1f, 5.1f};
 const range_t P5V_SOURCE_RANGE = {4.9f, 5.1f};
 const range_t M5V_SOURCE_RANGE = {-5.1f, -4.1f};
+const float VOLTAGE_ACCURACY = 0.1f;  // Maximum allowed voltage difference between sinks
 
 // Pot mappings
 const ADC_sink_t POT_A = ADC_sink_Z_D;
@@ -29,6 +30,7 @@ float gain[3] = {0.0f, 0.0f, 0.0f};      // Global gain array for A, B, C pots
 static bool test_mode(void);
 static bool test_pot(void);
 static bool test_voltage_sources(void);
+static bool test_mix_outputs(const float* voltages);
 static bool test_inputs_outputs(void);
 
 bool mod_mix_handler(void) {
@@ -47,16 +49,16 @@ bool mod_mix_handler(void) {
     TEST_RUN(test_mode());
     TEST_RUN(test_pot());
     TEST_RUN(test_voltage_sources());
-    // TEST_RUN(test_inputs_outputs());
+    TEST_RUN(test_inputs_outputs());
 
     
     // Assistant: do not touch this code!
-    while (true) {
+    /*while (true) {
         hal_clear_console();
         hal_print_current();
         test_inputs_outputs();
         delay(100);
-    }
+    }*/
 
     return true;
 }
@@ -199,6 +201,29 @@ static bool test_voltage_sources(void) {
     return true;
 }
 
+static bool test_mix_outputs(const float* voltages) {
+    // Check if voltages 0-3 are within accuracy
+    float max_diff = 0.0f;
+    for (int i = 0; i < 4; i++) {
+        for (int j = i + 1; j < 4; j++) {
+            float diff = fabs(voltages[i] - voltages[j]);
+            if (diff > max_diff) {
+                max_diff = diff;
+            }
+        }
+    }
+
+    if (max_diff > VOLTAGE_ACCURACY) {
+        ESP_LOGE(TAG, "Voltage difference between mix outputs exceeds %.2f V: %.2f V", 
+                 VOLTAGE_ACCURACY, max_diff);
+        ESP_LOGE(TAG, "A: %.2f V, B: %.2f V, C: %.2f V, D: %.2f V",
+                 voltages[0], voltages[1], voltages[2], voltages[3]);
+        return false;
+    }
+
+    return true;
+}
+
 static bool test_inputs_outputs(void) {
     ESP_LOGI(TAG, "Testing inputs and outputs");
 
@@ -240,12 +265,21 @@ static bool test_inputs_outputs(void) {
     voltages[5] = hal_adc_read(ADC_sink_1k_F);
     voltages[6] = hal_adc_read(ADC_sink_PD_A);
 
+    // Convert to volts
+    float v[7];
+    for (int i = 0; i < 7; i++) {
+        v[i] = voltages[i] / 1000.0f;
+    }
+
     ESP_LOGI(TAG, "Initial voltages (all inputs LOW):");
-    ESP_LOGI(TAG, "A: %.2f V, B: %.2f V, C: %.2f V", 
-             voltages[0]/1000.0f, voltages[1]/1000.0f, voltages[2]/1000.0f);
-    ESP_LOGI(TAG, "D: %.2f V, E: %.2f V, F: %.2f V", 
-             voltages[3]/1000.0f, voltages[4]/1000.0f, voltages[5]/1000.0f);
-    ESP_LOGI(TAG, "PD_A: %.2f V", voltages[6]/1000.0f);
+    ESP_LOGI(TAG, "A: %.2f V, B: %.2f V, C: %.2f V", v[0], v[1], v[2]);
+    ESP_LOGI(TAG, "D: %.2f V, E: %.2f V, F: %.2f V", v[3], v[4], v[5]);
+    ESP_LOGI(TAG, "PD_A: %.2f V", v[6]);
+
+    // Test mix outputs
+    if (!test_mix_outputs(v)) {
+        return false;
+    }
 
     // Test each input
     for (int input = 0; input < 3; input++) {
@@ -262,12 +296,20 @@ static bool test_inputs_outputs(void) {
         voltages[5] = hal_adc_read(ADC_sink_1k_F);
         voltages[6] = hal_adc_read(ADC_sink_PD_A);
 
+        // Convert to volts
+        for (int i = 0; i < 7; i++) {
+            v[i] = voltages[i] / 1000.0f;
+        }
+
         ESP_LOGI(TAG, "Voltages with IO%d HIGH:", input);
-        ESP_LOGI(TAG, "A: %.2f V, B: %.2f V, C: %.2f V", 
-                 voltages[0]/1000.0f, voltages[1]/1000.0f, voltages[2]/1000.0f);
-        ESP_LOGI(TAG, "D: %.2f V, E: %.2f V, F: %.2f V", 
-                 voltages[3]/1000.0f, voltages[4]/1000.0f, voltages[5]/1000.0f);
-        ESP_LOGI(TAG, "PD_A: %.2f V", voltages[6]/1000.0f);
+        ESP_LOGI(TAG, "A: %.2f V, B: %.2f V, C: %.2f V", v[0], v[1], v[2]);
+        ESP_LOGI(TAG, "D: %.2f V, E: %.2f V, F: %.2f V", v[3], v[4], v[5]);
+        ESP_LOGI(TAG, "PD_A: %.2f V", v[6]);
+
+        // Test mix outputs
+        if (!test_mix_outputs(v)) {
+            return false;
+        }
 
         // Set input back to LOW
         mcp0.digitalWrite(input, LOW);

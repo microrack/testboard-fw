@@ -63,20 +63,20 @@ power_rails_state_t wait_for_module_insertion(bool& p12v_ok, bool& p5v_ok, bool&
 power_rails_state_t wait_for_module_removal(bool& p12v_ok, bool& p5v_ok, bool& m12v_ok);
 
 /**
- * @brief Structure defining current range for a power rail
+ * @brief Structure defining range for a value
  */
 typedef struct {
-    int32_t min;  // Minimum acceptable current in uA
-    int32_t max;  // Maximum acceptable current in uA
-} current_range_t;
+    float min;  // Minimum acceptable value
+    float max;  // Maximum acceptable value
+} range_t;
 
 /**
  * @brief Structure defining current ranges for all power rails
  */
 typedef struct {
-    current_range_t p12v;  // +12V rail range
-    current_range_t m12v;  // -12V rail range
-    current_range_t p5v;   // +5V rail range
+    range_t p12v;  // +12V rail range in mA
+    range_t m12v;  // -12V rail range in mA
+    range_t p5v;   // +5V rail range in mA
 } power_rails_current_ranges_t;
 
 /**

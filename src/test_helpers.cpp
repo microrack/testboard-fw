@@ -105,7 +105,7 @@ bool check_initial_current_consumption(const power_rails_current_ranges_t& range
     int32_t current_m12v = measure_current(PIN_INA_M12V);
     int32_t current_p5v = measure_current(PIN_INA_5V);
 
-    // Convert to mA for logging
+    // Convert to mA for logging and comparison
     float p12v_ma = current_p12v / 1000.0f;
     float m12v_ma = current_m12v / 1000.0f;
     float p5v_ma = current_p5v / 1000.0f;
@@ -114,20 +114,20 @@ bool check_initial_current_consumption(const power_rails_current_ranges_t& range
              p12v_ma, m12v_ma, p5v_ma);
 
     // Check if all currents are within acceptable ranges
-    bool p12v_ok = (current_p12v >= ranges.p12v.min && current_p12v <= ranges.p12v.max);
-    bool m12v_ok = (current_m12v >= ranges.m12v.min && current_m12v <= ranges.m12v.max);
-    bool p5v_ok = (current_p5v >= ranges.p5v.min && current_p5v <= ranges.p5v.max);
+    bool p12v_ok = (p12v_ma >= ranges.p12v.min && p12v_ma <= ranges.p12v.max);
+    bool m12v_ok = (m12v_ma >= ranges.m12v.min && m12v_ma <= ranges.m12v.max);
+    bool p5v_ok = (p5v_ma >= ranges.p5v.min && p5v_ma <= ranges.p5v.max);
 
     if (!p12v_ok) {
-        ESP_LOGE("test_helpers", "+12V current out of range: %.2f mA (expected %d-%d uA)",
+        ESP_LOGE("test_helpers", "+12V current out of range: %.2f mA (expected %.2f-%.2f mA)",
                  p12v_ma, ranges.p12v.min, ranges.p12v.max);
     }
     if (!m12v_ok) {
-        ESP_LOGE("test_helpers", "-12V current out of range: %.2f mA (expected %d-%d uA)",
+        ESP_LOGE("test_helpers", "-12V current out of range: %.2f mA (expected %.2f-%.2f mA)",
                  m12v_ma, ranges.m12v.min, ranges.m12v.max);
     }
     if (!p5v_ok) {
-        ESP_LOGE("test_helpers", "+5V current out of range: %.2f mA (expected %d-%d uA)",
+        ESP_LOGE("test_helpers", "+5V current out of range: %.2f mA (expected %.2f-%.2f mA)",
                  p5v_ma, ranges.p5v.min, ranges.p5v.max);
     }
 
