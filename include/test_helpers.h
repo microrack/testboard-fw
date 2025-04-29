@@ -3,6 +3,20 @@
 #include <Arduino.h>
 
 /**
+ * @brief Macro to execute a function and propagate its return value
+ * 
+ * This macro executes the provided function and if it returns false,
+ * immediately returns false from the calling function.
+ * 
+ * @param func The function to execute
+ */
+#define TEST_RUN(func) do { \
+    if (!(func)) { \
+        return false; \
+    } \
+} while(0)
+
+/**
  * @brief Power rail connection states
  */
 typedef enum {

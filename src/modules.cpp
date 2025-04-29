@@ -21,7 +21,8 @@ const module_info_t* get_module_info(uint8_t id) {
 }
 
 // Module handlers implementation
-void mod_unknown_handler(void) {
+bool mod_unknown_handler(void) {
     ESP_LOGW(TAG, "Unknown module detected");
     display_printf("Unknown module type");
+    return false;
 } 

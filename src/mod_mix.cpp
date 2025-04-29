@@ -4,6 +4,7 @@
 #include "board.h"
 #include "hal.h"
 #include "display.h"
+#include "test_helpers.h"
 
 static const char* TAG = "mod_mix";
 
@@ -13,16 +14,22 @@ const int LED_UNI = IO4;
 mix_mode_t current_mode = MODE_UNI;  // Default mode
 
 static bool test_mode(void);
-void mod_mix_handler(void) {
+bool mod_mix_handler(void) {
     ESP_LOGI(TAG, "Starting mod_mix test sequence");
     display_printf("Testing mod_mix...");
 
+    TEST_RUN(test_mode());
+
+    return true;
+
+    /*
     while (true) { 
         hal_clear_console();
         hal_print_current();
         test_mode();
         delay(100);
     }
+    */
 }
 
 static bool test_mode(void) {
