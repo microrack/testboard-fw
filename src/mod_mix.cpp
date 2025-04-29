@@ -17,22 +17,22 @@ const float UNI_VOLTAGE_MAX = 5.1f;
 const float BI_VOLTAGE_MIN = -5.1f;
 const float BI_VOLTAGE_MAX = 5.1f;
 
+// Voltage source range constants
+const float P5V_SOURCE_MIN = 4.9f;
+const float P5V_SOURCE_MAX = 5.1f;
+const float M5V_SOURCE_MIN = -5.1f;
+const float M5V_SOURCE_MAX = -4.1f;
+
 mix_mode_t current_mode = MODE_UNI;  // Default mode
 float gain[3] = {0.0f, 0.0f, 0.0f};  // Global gain array for D, E, F pots
 
 static bool test_mode(void);
-static bool check_pot(void);
+static bool test_pot(void);
+static bool test_voltage_sources(void);
 
 bool mod_mix_handler(void) {
     ESP_LOGI(TAG, "Starting mod_mix test sequence");
     display_printf("Testing mod_mix...");
-
-    while (true) {
-        hal_clear_console();
-        hal_print_current();
-        check_pot();
-        delay(100);
-    }
 
     power_rails_current_ranges_t ranges = {
         .p12v = {22000, 30000},  // +12V: 22-30 mA
@@ -43,17 +43,19 @@ bool mod_mix_handler(void) {
     TEST_RUN(check_initial_current_consumption(ranges));
 
     TEST_RUN(test_mode());
-
-    return true;
+    TEST_RUN(test_pot());
+    TEST_RUN(test_voltage_sources());
 
     /*
-    while (true) { 
+    while (true) {
         hal_clear_console();
         hal_print_current();
-        test_mode();
+        test_voltage_sources();
         delay(100);
     }
     */
+
+    return true;
 }
 
 static bool test_mode(void) {
@@ -111,7 +113,7 @@ static bool test_mode(void) {
     return false;
 }
 
-static bool check_pot(void) {
+static bool test_pot(void) {
     ESP_LOGI(TAG, "Checking pot voltages");
 
     // Measure voltages for sinks D, E, F
@@ -151,5 +153,54 @@ static bool check_pot(void) {
     gain[2] = v_f / 5.0f;
 
     ESP_LOGI(TAG, "Calculated gains:\nD: %.2f\nE: %.2f\nF: %.2f", gain[0], gain[1], gain[2]);
+    return true;
+}
+
+static bool test_voltage_sources(void) {
+    ESP_LOGI(TAG, "Testing voltage sources");
+
+    // Configure PD sink pins as outputs
+    mcp1.pinMode(PIN_SINK_PD_B, OUTPUT);
+    mcp1.pinMode(PIN_SINK_PD_C, OUTPUT);
+
+    // Test +5V source (PD_B)
+    mcp1.digitalWrite(PIN_SINK_PD_B, LOW);  // Pull-down inactive
+    delay(10);  // Wait for voltage to stabilize
+    int32_t voltage_p5v_inactive = hal_adc_read(ADC_sink_PD_B);
+    
+    mcp1.digitalWrite(PIN_SINK_PD_B, HIGH);  // Pull-down active
+    delay(10);  // Wait for voltage to stabilize
+    int32_t voltage_p5v_active = hal_adc_read(ADC_sink_PD_B);
+
+    // Test -5V source (PD_C)
+    mcp1.digitalWrite(PIN_SINK_PD_C, LOW);  // Pull-down inactive
+    delay(10);  // Wait for voltage to stabilize
+    int32_t voltage_m5v_inactive = hal_adc_read(ADC_sink_PD_C);
+    
+    mcp1.digitalWrite(PIN_SINK_PD_C, HIGH);  // Pull-down active
+    delay(10);  // Wait for voltage to stabilize
+    int32_t voltage_m5v_active = hal_adc_read(ADC_sink_PD_C);
+
+    // Convert to volts
+    float p5v_inactive = voltage_p5v_inactive / 1000.0f;
+    float p5v_active = voltage_p5v_active / 1000.0f;
+    float m5v_inactive = voltage_m5v_inactive / 1000.0f;
+    float m5v_active = voltage_m5v_active / 1000.0f;
+
+    ESP_LOGI(TAG, "Voltage sources:\n+5V (inactive): %.2f V\n+5V (active): %.2f V\n-5V (inactive): %.2f V\n-5V (active): %.2f V",
+             p5v_inactive, p5v_active, m5v_inactive, m5v_active);
+
+    // Check if voltages are within expected ranges
+    bool p5v_ok = (p5v_inactive >= P5V_SOURCE_MIN && p5v_inactive <= P5V_SOURCE_MAX) && 
+                  (p5v_active >= P5V_SOURCE_MIN && p5v_active <= P5V_SOURCE_MAX);
+    
+    bool m5v_ok = (m5v_inactive >= M5V_SOURCE_MIN && m5v_inactive <= M5V_SOURCE_MAX) && 
+                  (m5v_active >= M5V_SOURCE_MIN && m5v_active <= M5V_SOURCE_MAX);
+
+    if (!p5v_ok || !m5v_ok) {
+        ESP_LOGE(TAG, "Voltage source test failed");
+        return false;
+    }
+
     return true;
 }
