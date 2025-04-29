@@ -104,9 +104,9 @@ void loop() {
 
     // Step 4: Wait for module removal for calibration
     bool p12v_ok, p5v_ok, m12v_ok;
-    bool rails_ok = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+    power_rails_state_t rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
 
-    if (rails_ok) {
+    if (rails_state != POWER_RAILS_NONE) {
         ESP_LOGI(TAG, "Waiting for calibration, remove module");
         display.clearDisplay();
         display.setCursor(0, 0);
@@ -114,9 +114,9 @@ void loop() {
         display.display();
 
         do {
-            rails_ok = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+            rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
             delay(100);
-        } while (rails_ok);
+        } while (rails_state != POWER_RAILS_NONE);
     }
 
     // Step 5: Perform calibration
@@ -141,10 +141,10 @@ void loop() {
         display.printf("Waiting for module...");
         display.display();
 
-        while (!rails_ok) {
-            rails_ok = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+        do {
+            rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
             delay(100);
-        }
+        } while (rails_state != POWER_RAILS_ALL);
 
         // Step 6.2: Module inserted, wait 100ms and measure
         delay(100);
@@ -168,10 +168,10 @@ void loop() {
         mcp1.digitalWrite(PIN_LED_OK, HIGH);
 
         // Step 6.3: Wait for module removal
-        while (rails_ok) {
-            rails_ok = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
+        do {
+            rails_state = get_power_rails_state(p12v_ok, p5v_ok, m12v_ok);
             delay(100);
-        }
+        } while (rails_state != POWER_RAILS_NONE);
 
         mcp1.digitalWrite(PIN_LED_OK, LOW);
     }
