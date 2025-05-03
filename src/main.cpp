@@ -62,21 +62,30 @@ void loop() {
 
     mcp1.digitalWrite(PIN_LED_FAIL, LOW);
 
-    test_result_t result;
+    bool test_result;
     do {
-        result = module->handler();
-        if (result == TEST_OK) {
+        test_result = module->handler();
+        if (test_result) {
+            // Test passed
             mcp1.digitalWrite(PIN_LED_OK, HIGH);
             mcp1.digitalWrite(PIN_LED_FAIL, LOW);
             display_printf("Module OK");
-        } else if (result == TEST_INTERRUPTED) {
+        } else {
+            // Test failed
+            ESP_LOGE(TAG, "Test failed, retrying...");
             mcp1.digitalWrite(PIN_LED_OK, LOW);
             mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-        } else if (result == TEST_NEED_REPEAT) {
-            mcp1.digitalWrite(PIN_LED_OK, LOW);
-            mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+            
+            // Check if module is still present
+            power_rails_state_t state = get_power_rails_state(NULL, NULL, NULL);
+            if (state == POWER_RAILS_NONE) {
+                break; // Module was removed, exit the loop
+            }
+            
+            // Short delay before retrying
+            delay(50);
         }
-    } while (result == TEST_NEED_REPEAT);
+    } while (!test_result);
 
     // Step 6.3: Wait for module removal
     wait_for_module_removal(p12v_ok, p5v_ok, m12v_ok);

@@ -66,33 +66,32 @@ static void setup_test(void) {
     delay(1); // Small delay to allow settings to take effect
 }
 
-test_result_t mod_mix_handler(void) {
+bool mod_mix_handler(void) {
     hal_clear_console();
     ESP_LOGI(TAG, "Starting mod_mix test sequence");
-    display_printf("Testing mod_mix...");
     
     // Setup test environment
     setup_test();
 
     // Check current on each power rail
-    TEST_RUN_REPEAT(check_current(INA_PIN_12V, {22.0f, 40.0f}, "+12V"));
-    TEST_RUN_REPEAT(check_current(INA_PIN_M12V, {22.0f, 80.0f}, "-12V"));
-    TEST_RUN_REPEAT(check_current(INA_PIN_5V, {13.0f, 25.0f}, "+5V"));
+    TEST_RUN(check_current(INA_PIN_12V, {22.0f, 40.0f}, "+12V"));
+    TEST_RUN(check_current(INA_PIN_M12V, {22.0f, 80.0f}, "-12V"));
+    TEST_RUN(check_current(INA_PIN_5V, {13.0f, 25.0f}, "+5V"));
 
-    TEST_RUN_REPEAT(check_mode_and_prompt());
-    TEST_RUN_REPEAT(test_pin_range(POT_A, UNI_VOLTAGE_RANGE, "Pot 1"));
-    TEST_RUN_REPEAT(test_pin_range(POT_B, UNI_VOLTAGE_RANGE, "Pot 2"));
-    TEST_RUN_REPEAT(test_pin_range(POT_C, UNI_VOLTAGE_RANGE, "Pot 3"));
+    TEST_RUN(check_mode_and_prompt());
+    TEST_RUN(test_pin_range(POT_A, UNI_VOLTAGE_RANGE, "Pot 1"));
+    TEST_RUN(test_pin_range(POT_B, UNI_VOLTAGE_RANGE, "Pot 2"));
+    TEST_RUN(test_pin_range(POT_C, UNI_VOLTAGE_RANGE, "Pot 3"));
     
     // Test +5V source
-    TEST_RUN_REPEAT(test_pin_pd(PD_B, {4.9f, 5.1f}, {4.9f, 5.1f}, "+5V"));
+    TEST_RUN(test_pin_pd(PD_B, {4.9f, 5.1f}, {4.9f, 5.1f}, "+5V"));
     // Test -5V source
-    TEST_RUN_REPEAT(test_pin_pd(PD_C, {-5.1f, -4.1f}, {-5.1f, -4.1f}, "-5V"));
+    TEST_RUN(test_pin_pd(PD_C, {-5.1f, -4.1f}, {-5.1f, -4.1f}, "-5V"));
 
     prepare_inputs_outputs(-1);
-    TEST_RUN_REPEAT(check_mix_outputs(range_t{0.0f, 1.0f}));
+    TEST_RUN(check_mix_outputs(range_t{0.0f, 1.0f}));
 
-    return TEST_OK;
+    return true;
 }
 
 static void prepare_inputs_outputs(int input) {

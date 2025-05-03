@@ -8,6 +8,6 @@
  * 
  * This function implements the test sequence for the mod_mix module.
  * It is called when a module with ID MODULE_ID_MIX is detected.
- * @return test_result_t indicating the test result
+ * @return bool indicating the test result: true for success, false for failure
  */
-test_result_t mod_mix_handler(void); 
+bool mod_mix_handler(void); 
