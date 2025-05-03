@@ -48,13 +48,11 @@ test_result_t mod_mix_handler(void) {
     ESP_LOGI(TAG, "Starting mod_mix test sequence");
     display_printf("Testing mod_mix...");
 
-    power_rails_current_ranges_t power_ranges = {
-        .p12v = {22.0f, 40.0f},  // +12V: 22-30 mA
-        .m12v = {22.0f, 80.0f},  // -12V: 22-60 mA
-        .p5v = {13.0f, 25.0f}    // +5V: 13-25 mA
-    };
-    // Check initial current consumption
-    TEST_RUN_REPEAT(check_initial_current_consumption(power_ranges));
+    // Check current on each power rail
+    TEST_RUN_REPEAT(check_current(INA_PIN_12V, {22.0f, 40.0f}, "+12V"));
+    TEST_RUN_REPEAT(check_current(INA_PIN_M12V, {22.0f, 80.0f}, "-12V"));
+    TEST_RUN_REPEAT(check_current(INA_PIN_5V, {13.0f, 25.0f}, "+5V"));
+
     TEST_RUN_REPEAT(check_mode_and_prompt());
     TEST_RUN_REPEAT(test_pin_range(POT_A, UNI_VOLTAGE_RANGE, "Pot 1"));
     TEST_RUN_REPEAT(test_pin_range(POT_B, UNI_VOLTAGE_RANGE, "Pot 2"));

@@ -115,6 +115,25 @@ typedef struct {
 } power_rails_current_ranges_t;
 
 /**
+ * @brief Current measurement pins
+ */
+typedef enum {
+    INA_PIN_12V = PIN_INA_12V,    // +12V rail current monitor
+    INA_PIN_5V = PIN_INA_5V,      // +5V rail current monitor
+    INA_PIN_M12V = PIN_INA_M12V   // -12V rail current monitor
+} ina_pin_t;
+
+/**
+ * @brief Checks if the current consumption on a specific rail is within acceptable range
+ * 
+ * @param pin The INA pin to measure current from
+ * @param range The acceptable current range in mA
+ * @param rail_name Name of the rail for display purposes
+ * @return true if current measurement is within acceptable range, false otherwise
+ */
+bool check_current(ina_pin_t pin, const range_t& range, const char* rail_name);
+
+/**
  * @brief Checks if the initial current consumption is within acceptable ranges
  * 
  * @param ranges Structure containing acceptable current ranges for all power rails
