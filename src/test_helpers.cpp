@@ -95,7 +95,8 @@ bool check_current(ina_pin_t pin, const range_t& range, const char* rail_name) {
     // Convert to mA for logging and comparison
     float current_ma = current_ua / 1000.0f;
     
-    ESP_LOGI(TAG, "%s current: %.2f mA", rail_name, current_ma);
+    ESP_LOGI(TAG, "%s current: %.2f mA (acceptable range: %.2f-%.2f mA)",
+             rail_name, current_ma, range.min, range.max);
     
     // Check if current is within acceptable range
     bool current_ok = (current_ma >= range.min && current_ma <= range.max);
@@ -127,12 +128,15 @@ bool test_pin_range(ADC_sink_t pin, const range_t& range, const char* pin_name) 
     int32_t voltage_raw = hal_adc_read(pin);
     float voltage = voltage_raw / 1000.0f;  // Convert to volts
 
-    ESP_LOGI(TAG, "%s voltage: %.2f V", pin_name, voltage);
+    ESP_LOGI(TAG, "%s voltage: %.2f V (acceptable range: %.2f-%.2f V)",
+             pin_name, voltage, range.min, range.max);
 
     // Check voltage range
     if (voltage < range.min || voltage > range.max) {
-        ESP_LOGE(TAG, "%s voltage out of range: %.2f V", pin_name, voltage);
-        display_printf("%s voltage out of range\n%.2f V", pin_name, voltage);
+        ESP_LOGE(TAG, "%s voltage out of range: %.2f V (expected %.2f-%.2f V)",
+                 pin_name, voltage, range.min, range.max);
+        display_printf("%s voltage out of range\n%.2f V (%.2f-%.2f V)", 
+                      pin_name, voltage, range.min, range.max);
         return false;
     }
 
@@ -161,18 +165,22 @@ bool test_pin_pd(const voltage_source_t& source,
     float v_hiz = voltage_hiz / 1000.0f;
     float v_pd = voltage_pd / 1000.0f;
 
-    ESP_LOGI(TAG, "%s source:\nHigh-Z: %.2f V\nPull-down: %.2f V",
-             source_name, v_hiz, v_pd);
+    ESP_LOGI(TAG, "%s source:\nHigh-Z: %.2f V (acceptable range: %.2f-%.2f V)\nPull-down: %.2f V (acceptable range: %.2f-%.2f V)",
+             source_name, v_hiz, hiz_range.min, hiz_range.max, v_pd, pd_range.min, pd_range.max);
 
     // Check if voltages are within expected ranges
     if (v_hiz < hiz_range.min || v_hiz > hiz_range.max) {
-        ESP_LOGE(TAG, "%s source high-Z voltage out of range", source_name);
-        display_printf("%s high-Z out of range\n%.2f V", source_name, v_hiz);
+        ESP_LOGE(TAG, "%s source high-Z voltage out of range: %.2f V (expected %.2f-%.2f V)",
+                 source_name, v_hiz, hiz_range.min, hiz_range.max);
+        display_printf("%s high-Z out of range\n%.2f V (%.2f-%.2f V)", 
+                      source_name, v_hiz, hiz_range.min, hiz_range.max);
         return false;
     }
     if (v_pd < pd_range.min || v_pd > pd_range.max) {
-        ESP_LOGE(TAG, "%s source pull-down voltage out of range", source_name);
-        display_printf("%s pull-down out of range\n%.2f V", source_name, v_pd);
+        ESP_LOGE(TAG, "%s source pull-down voltage out of range: %.2f V (expected %.2f-%.2f V)",
+                 source_name, v_pd, pd_range.min, pd_range.max);
+        display_printf("%s pull-down out of range\n%.2f V (%.2f-%.2f V)", 
+                      source_name, v_pd, pd_range.min, pd_range.max);
         return false;
     }
 
@@ -219,8 +227,11 @@ bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges
     float current_pin2_ma = current_pin2 / 1000.0f;
 
     // Print current consumption
-    ESP_LOGI(TAG, "Current consumption on 5V rail:\nPin1: %.2f mA\nPin2: %.2f mA",
-             current_pin1_ma, current_pin2_ma);
+    ESP_LOGI(TAG, "Current consumption on 5V rail:");
+    ESP_LOGI(TAG, "Pin1: %.2f mA (active range: %.2f-%.2f mA, inactive range: %.2f-%.2f mA)",
+             current_pin1_ma, ranges.active.min, ranges.active.max, ranges.inactive.min, ranges.inactive.max);
+    ESP_LOGI(TAG, "Pin2: %.2f mA (active range: %.2f-%.2f mA, inactive range: %.2f-%.2f mA)",
+             current_pin2_ma, ranges.active.min, ranges.active.max, ranges.inactive.min, ranges.inactive.max);
 
     // Determine mode based on current measurements
     if (current_pin1_ma >= ranges.active.min && current_pin1_ma <= ranges.active.max && 

@@ -103,6 +103,9 @@ static bool test_inactive(void) {
         int32_t voltage_raw = hal_adc_read(mix_sinks[i]);
         float voltage = voltage_raw / 1000.0f;
         
+        ESP_LOGI(TAG, "%s voltage: %.2f V (inactive range: %.2f-%.2f V)", 
+                mix_sink_labels[i], voltage, mix_inactive.min, mix_inactive.max);
+        
         if (voltage < mix_inactive.min || voltage > mix_inactive.max) {
             ESP_LOGE(TAG, "%s voltage out of inactive range: %.2f V (expected %.2f-%.2f V)",
                      mix_sink_labels[i], voltage, mix_inactive.min, mix_inactive.max);
@@ -117,6 +120,9 @@ static bool test_inactive(void) {
         // Get the actual voltage for detailed error reporting
         int32_t voltage_raw = hal_adc_read(channel_sinks[i]);
         float voltage = voltage_raw / 1000.0f;
+        
+        ESP_LOGI(TAG, "%s voltage: %.2f V (inactive range: %.2f-%.2f V)", 
+                channel_sink_labels[i], voltage, channel_inactive.min, channel_inactive.max);
         
         if (voltage < channel_inactive.min || voltage > channel_inactive.max) {
             ESP_LOGE(TAG, "%s voltage out of inactive range: %.2f V (expected %.2f-%.2f V)",
@@ -144,6 +150,9 @@ static bool test_active_channel(int idx) {
         int32_t voltage_raw = hal_adc_read(mix_sinks[i]);
         float voltage = voltage_raw / 1000.0f;
         
+        ESP_LOGI(TAG, "IO%d high: %s voltage: %.2f V (active range: %.2f-%.2f V)", 
+                source, mix_sink_labels[i], voltage, mix_active.min, mix_active.max);
+        
         if (voltage < mix_active.min || voltage > mix_active.max) {
             ESP_LOGE(TAG, "%s voltage out of active range with IO%d high: %.2f V (expected %.2f-%.2f V)",
                      mix_sink_labels[i], source, voltage, mix_active.min, mix_active.max);
@@ -161,6 +170,9 @@ static bool test_active_channel(int idx) {
         float voltage = voltage_raw / 1000.0f;
         
         if (i == idx) {  // Corresponding channel
+            ESP_LOGI(TAG, "IO%d high: %s voltage: %.2f V (active range: %.2f-%.2f V)", 
+                    source, channel_sink_labels[i], voltage, channel_active.min, channel_active.max);
+            
             if (voltage < channel_active.min || voltage > channel_active.max) {
                 ESP_LOGE(TAG, "%s voltage out of active range with IO%d high: %.2f V (expected %.2f-%.2f V)",
                          channel_sink_labels[i], source, voltage, channel_active.min, channel_active.max);
@@ -170,6 +182,9 @@ static bool test_active_channel(int idx) {
                 return false;
             }
         } else {  // Other channels
+            ESP_LOGI(TAG, "IO%d high: %s voltage: %.2f V (inactive range: %.2f-%.2f V)", 
+                    source, channel_sink_labels[i], voltage, channel_inactive.min, channel_inactive.max);
+            
             if (voltage < channel_inactive.min || voltage > channel_inactive.max) {
                 ESP_LOGE(TAG, "%s voltage out of inactive range with IO%d high: %.2f V (expected %.2f-%.2f V)",
                          channel_sink_labels[i], source, voltage, channel_inactive.min, channel_inactive.max);
@@ -277,10 +292,12 @@ static void prepare_inputs_outputs(int input) {
 }
 
 static bool check_mix_outputs(range_t range) {
+    ESP_LOGI(TAG, "Checking mix outputs with range: %.2f-%.2f V", range.min, range.max);
+    
     TEST_RUN(test_pin_range(ADC_sink_1k_A, range, "A"));
     TEST_RUN(test_pin_range(ADC_sink_1k_B, range, "B"));
     TEST_RUN(test_pin_range(ADC_sink_1k_C, range, "C"));
     TEST_RUN(test_pin_range(ADC_sink_1k_D, range, "D"));
-
+    
     return true;
 }
