@@ -62,11 +62,21 @@ void loop() {
 
     mcp1.digitalWrite(PIN_LED_FAIL, LOW);
 
-    if(module->handler()) {
-        mcp1.digitalWrite(PIN_LED_OK, HIGH);
-        mcp1.digitalWrite(PIN_LED_FAIL, LOW);
-        display_printf("Module OK");
-    }
+    test_result_t result;
+    do {
+        result = module->handler();
+        if (result == TEST_OK) {
+            mcp1.digitalWrite(PIN_LED_OK, HIGH);
+            mcp1.digitalWrite(PIN_LED_FAIL, LOW);
+            display_printf("Module OK");
+        } else if (result == TEST_INTERRUPTED) {
+            mcp1.digitalWrite(PIN_LED_OK, LOW);
+            mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+        } else if (result == TEST_NEED_REPEAT) {
+            mcp1.digitalWrite(PIN_LED_OK, LOW);
+            mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+        }
+    } while (result == TEST_NEED_REPEAT);
 
     // Step 6.3: Wait for module removal
     wait_for_module_removal(p12v_ok, p5v_ok, m12v_ok);

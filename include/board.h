@@ -83,3 +83,27 @@ typedef enum {
 const int ADC_PINS[ADC_sink_count] = {36, 39, 34, 35, 32, 33, 25, 26, 27, 14, 12, 13};
 
 const int ADC_atten = 3;
+
+/**
+ * @brief Structure defining a voltage source test configuration
+ */
+typedef struct {
+    ADC_sink_t adc_pin;    // ADC pin to read voltage from
+    mcp_io_t pd_pin;       // Pull-down control pin
+} voltage_source_t;
+
+// Voltage source configurations
+const voltage_source_t PD_A = {
+    .adc_pin = ADC_sink_PD_A,
+    .pd_pin = (mcp_io_t)PIN_SINK_PD_A
+};
+
+const voltage_source_t PD_B = {
+    .adc_pin = ADC_sink_PD_B,
+    .pd_pin = (mcp_io_t)PIN_SINK_PD_B
+};
+
+const voltage_source_t PD_C = {
+    .adc_pin = ADC_sink_PD_C,
+    .pd_pin = (mcp_io_t)PIN_SINK_PD_C
+};

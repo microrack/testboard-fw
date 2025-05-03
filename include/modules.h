@@ -8,7 +8,7 @@
 #define MODULE_ID_MIX 10
 
 // Module handler function type
-typedef bool (*module_handler_t)(void);
+typedef test_result_t (*module_handler_t)(void);
 
 // Module information structure
 typedef struct {
@@ -21,4 +21,4 @@ typedef struct {
 const module_info_t* get_module_info(uint8_t id);
 
 // Module handlers
-bool mod_unknown_handler(void); 
+test_result_t mod_unknown_handler(void); 
