@@ -24,6 +24,7 @@ static bool test_mix_outputs(const float* voltages);
 static bool test_inputs_outputs(void);
 static bool check_mix_outputs(range_t range);
 static void prepare_inputs_outputs(int input);
+static void setup_test(void);
 
 static bool check_mode_and_prompt() {
     mode_current_ranges_t mode_ranges = {
@@ -43,10 +44,35 @@ static bool check_mode_and_prompt() {
     return true;
 }
 
+static void setup_test(void) {
+    ESP_LOGI(TAG, "Setting up test environment");
+    
+    // Set all DAC outputs to 0V
+    hal_set_source(SOURCE_A, 0.0f);
+    hal_set_source(SOURCE_B, 0.0f);
+    hal_set_source(SOURCE_C, 0.0f);
+    hal_set_source(SOURCE_D, 0.0f);
+    
+    // Set both LED pins to input
+    mcp0.pinMode(LED_BI, INPUT);
+    mcp0.pinMode(LED_UNI, INPUT);
+    
+    // Set IO0..IO2 to output with logical 0
+    for (int i = IO0; i <= IO2; i++) {
+        mcp0.pinMode(i, OUTPUT);
+        mcp0.digitalWrite(i, LOW);
+    }
+    
+    delay(1); // Small delay to allow settings to take effect
+}
+
 test_result_t mod_mix_handler(void) {
     hal_clear_console();
     ESP_LOGI(TAG, "Starting mod_mix test sequence");
     display_printf("Testing mod_mix...");
+    
+    // Setup test environment
+    setup_test();
 
     // Check current on each power rail
     TEST_RUN_REPEAT(check_current(INA_PIN_12V, {22.0f, 40.0f}, "+12V"));
