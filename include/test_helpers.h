@@ -33,12 +33,12 @@
             mcp1.digitalWrite(PIN_LED_FAIL, HIGH); \
             mcp1.digitalWrite(PIN_LED_OK, LOW); \
             if (get_power_rails_state(NULL, NULL, NULL) != POWER_RAILS_ALL) { \
-                return TEST_INTERRUPTED; \
+                return false; \
             } \
             delay(10); \
         } \
         mcp1.digitalWrite(PIN_LED_FAIL, LOW); \
-        return TEST_NEED_REPEAT; \
+        return false; \
     } \
 } while(0)
 
