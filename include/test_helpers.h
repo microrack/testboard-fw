@@ -169,4 +169,39 @@ typedef struct {
     range_t inactive;
 } mode_current_ranges_t;
 
-bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges_t& ranges, int* output_mode); 
+// Test operation types
+typedef enum {
+    TEST_OP_SOURCE,      // Set voltage source
+    TEST_OP_IO,          // Set IO pin state
+    TEST_OP_SINK_PD,     // Set sink pulldown
+    TEST_OP_CHECK_CURRENT, // Check current consumption
+    TEST_OP_CHECK_PIN    // Check pin voltage
+} test_op_type_t;
+
+// Test operation structure
+typedef struct {
+    bool repeat;           // Use TEST_RUN_REPEAT if true, TEST_RUN if false
+    test_op_type_t op;    // Operation type
+    int pin;              // Pin number
+    int32_t arg1;         // Voltage for SOURCE, state for IO, 0/1 for SINK_PD, low value for checks
+    int32_t arg2;         // High value for checks (only used for CHECK_CURRENT and CHECK_PIN)
+} test_operation_t;
+
+bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges_t& ranges, int* output_mode);
+
+/**
+ * @brief Execute a sequence of test operations
+ * 
+ * @param operations Array of test operations to execute
+ * @param count Number of operations in the array
+ * @return true if all tests passed, false otherwise
+ */
+bool execute_test_sequence(const test_operation_t* operations, size_t count);
+
+/**
+ * @brief Execute a single test operation
+ * 
+ * @param op The test operation to execute
+ * @return true if the operation succeeded, false otherwise
+ */
+bool execute_single_operation(const test_operation_t& op); 

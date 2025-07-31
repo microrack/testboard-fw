@@ -250,4 +250,80 @@ bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges
     display_printf("Invalid currents\nPin1: %.2f mA\nPin2: %.2f mA", 
                   current_pin1_ma, current_pin2_ma);
     return false;
+}
+
+bool execute_test_sequence(const test_operation_t* operations, size_t count) {
+    ESP_LOGI(TAG, "Executing test sequence with %zu operations", count);
+    
+    for (size_t i = 0; i < count; i++) {
+        const test_operation_t& op = operations[i];
+        bool result = false;
+        
+        // Handle repeatable operations
+        if (op.repeat) {
+            do {
+                result = execute_single_operation(op);
+                if (!result) {
+                    delay(50); // Short delay before retry
+                }
+            } while (!result);
+        } else {
+            result = execute_single_operation(op);
+        }
+        
+        if (!result) {
+            ESP_LOGE(TAG, "Test operation %zu failed", i);
+            return false;
+        }
+        
+        // Small delay between operations
+        delay(1);
+    }
+    
+    ESP_LOGI(TAG, "Test sequence completed successfully");
+    return true;
+}
+
+// Helper function to execute a single test operation
+bool execute_single_operation(const test_operation_t& op) {
+    switch (op.op) {
+        case TEST_OP_SOURCE: {
+            hal_set_source((source_net_t)op.pin, op.arg1);
+            return true;
+        }
+        
+        case TEST_OP_IO: {
+            hal_set_io((mcp_io_t)op.pin, (io_state_t)op.arg1);
+            return true;
+        }
+        
+        case TEST_OP_SINK_PD: {
+            // Assuming PIN_SINK_PD_A is the pin for sink pulldown
+            mcp1.pinMode(PIN_SINK_PD_A, OUTPUT);
+            mcp1.digitalWrite(PIN_SINK_PD_A, op.arg1 ? HIGH : LOW);
+            return true;
+        }
+        
+        case TEST_OP_CHECK_CURRENT: {
+            range_t range = {op.arg1, op.arg2};
+            const char* rail_name = (op.pin == INA_PIN_12V) ? "+12V" : 
+                                   (op.pin == INA_PIN_5V) ? "+5V" : "-12V";
+            return check_current((ina_pin_t)op.pin, range, rail_name);
+        }
+        
+        case TEST_OP_CHECK_PIN: {
+            range_t range = {op.arg1, op.arg2};
+            const char* pin_name = (op.pin == ADC_sink_1k_A) ? "A" :
+                                  (op.pin == ADC_sink_1k_B) ? "B" :
+                                  (op.pin == ADC_sink_1k_C) ? "C" :
+                                  (op.pin == ADC_sink_1k_D) ? "D" :
+                                  (op.pin == ADC_sink_1k_E) ? "E" :
+                                  (op.pin == ADC_sink_1k_F) ? "F" : "Unknown";
+            return test_pin_range((ADC_sink_t)op.pin, range, pin_name);
+        }
+        
+        default:
+            ESP_LOGE(TAG, "Unknown test operation type: %d", op.op);
+            return false;
+    }
 } 

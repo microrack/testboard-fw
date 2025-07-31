@@ -1,6 +1,9 @@
 #pragma once
 
-#include <stdint.h>
+#include "test_helpers.h"
 
-// Module handler function declaration
-bool mod_jacket_handler(void); 
+// Test operations array for jacket module
+extern const test_operation_t jacket_test_operations[];
+
+// Size of the test operations array
+extern const size_t jacket_test_operations_count; 

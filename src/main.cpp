@@ -64,7 +64,7 @@ void loop() {
 
     bool test_result;
     do {
-        test_result = module->handler();
+        test_result = execute_module_tests(module);
         if (test_result) {
             // Test passed
             mcp1.digitalWrite(PIN_LED_OK, HIGH);
