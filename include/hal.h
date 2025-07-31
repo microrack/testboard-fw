@@ -7,7 +7,6 @@
 #include <Wire.h>
 #include <DAC8552.h>
 #include <esp_log.h>
-#include <driver/adc.h>
 
 // Global objects
 extern SPIClass SPI_DAC;
