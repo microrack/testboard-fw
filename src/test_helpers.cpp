@@ -284,6 +284,16 @@ bool execute_test_sequence(const test_operation_t* operations, size_t count) {
     return true;
 }
 
+// Helper function to map current measurement pin numbers from JSON to actual pins
+int map_current_pin(int pin) {
+    switch (pin) {
+        case 0: return PIN_INA_12V;   // +12V rail
+        case 1: return PIN_INA_5V;    // +5V rail
+        case 2: return PIN_INA_M12V;  // -12V rail
+        default: return pin;           // Return as-is for other pins
+    }
+}
+
 // Helper function to execute a single test operation
 bool execute_single_operation(const test_operation_t& op) {
     switch (op.op) {
@@ -306,9 +316,10 @@ bool execute_single_operation(const test_operation_t& op) {
         
         case TEST_OP_CHECK_CURRENT: {
             range_t range = {op.arg1, op.arg2};
-            const char* rail_name = (op.pin == INA_PIN_12V) ? "+12V" : 
-                                   (op.pin == INA_PIN_5V) ? "+5V" : "-12V";
-            return check_current((ina_pin_t)op.pin, range, rail_name);
+            int mapped_pin = map_current_pin(op.pin);
+            const char* rail_name = (mapped_pin == PIN_INA_12V) ? "+12V" : 
+                                   (mapped_pin == PIN_INA_5V) ? "+5V" : "-12V";
+            return check_current((ina_pin_t)mapped_pin, range, rail_name);
         }
         
         case TEST_OP_CHECK_PIN: {

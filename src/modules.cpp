@@ -3,6 +3,7 @@
 #include "esp_log.h"
 #include <LittleFS.h>
 #include <ArduinoJson.h>
+#include "board.h"
 
 static const char* TAG = "modules";
 

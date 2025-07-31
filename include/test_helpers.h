@@ -204,4 +204,7 @@ bool execute_test_sequence(const test_operation_t* operations, size_t count);
  * @param op The test operation to execute
  * @return true if the operation succeeded, false otherwise
  */
-bool execute_single_operation(const test_operation_t& op); 
+bool execute_single_operation(const test_operation_t& op);
+
+// Helper function to map current measurement pin numbers from JSON to actual pins
+int map_current_pin(int pin); 
