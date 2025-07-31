@@ -2,8 +2,9 @@
 #include "display.h"
 #include "esp_log.h"
 #include <LittleFS.h>
-#include <ArduinoJson.h>
 #include "board.h"
+#include <cstring>
+#include <cstdlib>
 
 static const char* TAG = "modules";
 
@@ -13,14 +14,57 @@ static size_t modules_count = 0;
 static test_operation_t* operations_buffer = nullptr;
 static size_t operations_buffer_size = 0;
 
-// Helper function to convert string operation type to enum
-static test_op_type_t string_to_op_type(const char* op_str) {
-    if (strcmp(op_str, "SOURCE") == 0) return TEST_OP_SOURCE;
-    if (strcmp(op_str, "IO") == 0) return TEST_OP_IO;
-    if (strcmp(op_str, "SINK_PD") == 0) return TEST_OP_SINK_PD;
-    if (strcmp(op_str, "CHECK_CURRENT") == 0) return TEST_OP_CHECK_CURRENT;
-    if (strcmp(op_str, "CHECK_PIN") == 0) return TEST_OP_CHECK_PIN;
-    return TEST_OP_SOURCE; // Default fallback
+// Helper function to convert string to source_net_t
+static source_net_t string_to_source(const char* str) {
+    if (strcmp(str, "A") == 0) return SOURCE_A;
+    if (strcmp(str, "B") == 0) return SOURCE_B;
+    if (strcmp(str, "C") == 0) return SOURCE_C;
+    if (strcmp(str, "D") == 0) return SOURCE_D;
+    return SOURCE_A; // Default
+}
+
+// Helper function to convert string to io_state_t
+static io_state_t string_to_io_state(const char* str) {
+    if (strcmp(str, "h") == 0) return IO_HIGH;
+    if (strcmp(str, "l") == 0) return IO_LOW;
+    if (strcmp(str, "z") == 0) return IO_INPUT;
+    return IO_INPUT; // Default
+}
+
+// Helper function to convert string to current rail
+static int string_to_current_rail(const char* str) {
+    if (strcmp(str, "+12") == 0) return 0; // Maps to PIN_INA_12V
+    if (strcmp(str, "+5") == 0) return 1;  // Maps to PIN_INA_5V
+    if (strcmp(str, "-12") == 0) return 2; // Maps to PIN_INA_M12V
+    return 0; // Default
+}
+
+// Helper function to convert string to voltage pin
+static ADC_sink_t string_to_voltage_pin(const char* str) {
+    if (strcmp(str, "A") == 0) return ADC_sink_1k_A;
+    if (strcmp(str, "B") == 0) return ADC_sink_1k_B;
+    if (strcmp(str, "C") == 0) return ADC_sink_1k_C;
+    if (strcmp(str, "D") == 0) return ADC_sink_1k_D;
+    if (strcmp(str, "E") == 0) return ADC_sink_1k_E;
+    if (strcmp(str, "F") == 0) return ADC_sink_1k_F;
+    return ADC_sink_1k_A; // Default
+}
+
+// Helper function to skip whitespace
+static const char* skip_whitespace(const char* str) {
+    while (*str == ' ' || *str == '\t') str++;
+    return str;
+}
+
+// Helper function to get next token
+static const char* get_token(const char* str, char* token, size_t max_len) {
+    str = skip_whitespace(str);
+    size_t i = 0;
+    while (*str && *str != ' ' && *str != '\t' && *str != '\n' && *str != '\r' && i < max_len - 1) {
+        token[i++] = *str++;
+    }
+    token[i] = '\0';
+    return str;
 }
 
 bool init_modules_from_fs() {
@@ -31,36 +75,33 @@ bool init_modules_from_fs() {
         return false;
     }
     
-    File file = LittleFS.open("/modules.json", "r");
+    File file = LittleFS.open("/modules.txt", "r");
     if (!file) {
-        ESP_LOGE(TAG, "Failed to open modules.json");
+        ESP_LOGE(TAG, "Failed to open modules.txt");
         return false;
     }
     
-    // Parse JSON
-    DynamicJsonDocument doc(16384); // 16KB should be enough
-    DeserializationError error = deserializeJson(doc, file);
-    file.close();
-    
-    if (error) {
-        ESP_LOGE(TAG, "Failed to parse JSON: %s", error.c_str());
-        return false;
-    }
-    
-    JsonArray modules_array = doc["modules"];
-    if (!modules_array) {
-        ESP_LOGE(TAG, "No modules array found in JSON");
-        return false;
-    }
-    
-    // Count total operations needed
+    // First pass: count modules and operations
     size_t total_operations = 0;
-    for (JsonObject module : modules_array) {
-        JsonArray operations = module["operations"];
-        if (operations) {
-            total_operations += operations.size();
+    size_t module_count = 0;
+    file.seek(0);
+    
+    while (file.available()) {
+        String line = file.readStringUntil('\n');
+        line.trim();
+        
+        if (line.length() == 0 || line.startsWith("#")) {
+            continue;
+        }
+        
+        if (line.startsWith("module ")) {
+            module_count++;
+        } else if (line.length() > 0) {
+            total_operations++;
         }
     }
+    
+    ESP_LOGI(TAG, "Found %zu modules with %zu total operations", module_count, total_operations);
     
     // Allocate memory
     if (operations_buffer) {
@@ -71,46 +112,129 @@ bool init_modules_from_fs() {
     }
     
     operations_buffer = (test_operation_t*)malloc(total_operations * sizeof(test_operation_t));
-    modules = (module_info_t*)malloc(modules_array.size() * sizeof(module_info_t));
+    modules = (module_info_t*)malloc(module_count * sizeof(module_info_t));
     
     if (!operations_buffer || !modules) {
         ESP_LOGE(TAG, "Failed to allocate memory for modules");
+        file.close();
         return false;
     }
     
-    modules_count = modules_array.size();
+    modules_count = module_count;
     operations_buffer_size = total_operations;
     
-    // Parse modules
+    // Second pass: parse modules and operations
+    file.seek(0);
     size_t operation_index = 0;
     size_t module_index = 0;
+    module_info_t* current_module = nullptr;
     
-    for (JsonObject module : modules_array) {
-        module_info_t& mod = modules[module_index];
-        mod.id = module["id"] | 0;
-        mod.name = strdup(module["name"] | "unknown");
-        mod.test_operations = &operations_buffer[operation_index];
-        mod.test_operations_count = 0;
+    while (file.available()) {
+        String line = file.readStringUntil('\n');
+        line.trim();
         
-        JsonArray operations = module["operations"];
-        if (operations) {
-            for (JsonObject op : operations) {
-                test_operation_t& operation = operations_buffer[operation_index];
-                operation.repeat = op["repeat"] | false;
-                operation.op = string_to_op_type(op["op"] | "SOURCE");
-                operation.pin = op["pin"] | 0;
-                operation.arg1 = op["arg1"] | 0;
-                operation.arg2 = op["arg2"] | 0;
-                
-                operation_index++;
-                mod.test_operations_count++;
-            }
+        if (line.length() == 0 || line.startsWith("#")) {
+            continue;
         }
         
-        module_index++;
-        ESP_LOGI(TAG, "Loaded module %s (ID: %d) with %zu operations", 
-                 mod.name, mod.id, mod.test_operations_count);
+        if (line.startsWith("module ")) {
+            // Parse module line: "module <name> <id>"
+            const char* line_str = line.c_str();
+            char token[64];
+            
+            line_str = get_token(line_str, token, sizeof(token)); // Skip "module"
+            line_str = get_token(line_str, token, sizeof(token)); // Get name
+            
+            char* name = strdup(token);
+            line_str = get_token(line_str, token, sizeof(token)); // Get id
+            
+            current_module = &modules[module_index];
+            current_module->id = atoi(token);
+            current_module->name = name;
+            current_module->test_operations = &operations_buffer[operation_index];
+            current_module->test_operations_count = 0;
+            
+            module_index++;
+            ESP_LOGI(TAG, "Parsing module: %s (ID: %d)", name, current_module->id);
+            
+        } else if (current_module && line.length() > 0) {
+            // Parse operation line
+            const char* line_str = line.c_str();
+            char token[64];
+            test_operation_t& op = operations_buffer[operation_index];
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            
+            if (strcmp(token, "src") == 0) {
+                op.op = TEST_OP_SOURCE;
+                op.repeat = false;
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.pin = string_to_source(token);
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg1 = atoi(token);
+                op.arg2 = 0;
+                
+            } else if (strcmp(token, "io") == 0) {
+                op.op = TEST_OP_IO;
+                op.repeat = false;
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.pin = atoi(token);
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg1 = string_to_io_state(token);
+                op.arg2 = 0;
+                
+            } else if (strcmp(token, "pd") == 0) {
+                op.op = TEST_OP_SINK_PD;
+                op.repeat = false;
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.pin = 0; // Assuming PIN_SINK_PD_A
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg1 = (strcmp(token, "p") == 0) ? 1 : 0;
+                op.arg2 = 0;
+                
+            } else if (strcmp(token, "i") == 0) {
+                op.op = TEST_OP_CHECK_CURRENT;
+                op.repeat = false;
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.pin = string_to_current_rail(token);
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg1 = atoi(token);
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg2 = atoi(token);
+                
+            } else if (strcmp(token, "v") == 0) {
+                op.op = TEST_OP_CHECK_PIN;
+                op.repeat = false;
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.pin = string_to_voltage_pin(token);
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg1 = atoi(token);
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg2 = atoi(token);
+                
+            } else {
+                ESP_LOGW(TAG, "Unknown operation: %s", token);
+                continue;
+            }
+            
+            operation_index++;
+            current_module->test_operations_count++;
+        }
     }
+    
+    file.close();
     
     ESP_LOGI(TAG, "Successfully loaded %zu modules with %zu total operations", 
              modules_count, total_operations);
