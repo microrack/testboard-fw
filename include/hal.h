@@ -41,6 +41,16 @@ void hal_init();
 void hal_adc_calibrate();
 uint8_t hal_adapter_id();
 
+// IO states
+typedef enum {
+    IO_LOW = 0,
+    IO_HIGH = 1,
+    IO_INPUT = 2
+} io_state_t;
+
+// IO control functions
+void hal_set_io(mcp_io_t io_pin, io_state_t state);
+
 // External objects
 extern DAC8552 dac1;
 extern DAC8552 dac2;

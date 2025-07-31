@@ -371,4 +371,16 @@ void hal_clear_console(void) {
     // 2. Move cursor to home position (\033[H)
     Serial.print("\033[2J\033[H");
     Serial.flush();  // Ensure all data is sent
+}
+
+void hal_set_io(mcp_io_t io_pin, io_state_t state) {
+    if (state == IO_INPUT) {
+        mcp0.pinMode(io_pin, INPUT);
+    } else if (state == IO_HIGH) {
+        mcp0.pinMode(io_pin, OUTPUT);
+        mcp0.digitalWrite(io_pin, HIGH);
+    } else if (state == IO_LOW) {
+        mcp0.pinMode(io_pin, OUTPUT);
+        mcp0.digitalWrite(io_pin, LOW);
+    }
 } 
