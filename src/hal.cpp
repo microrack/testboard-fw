@@ -295,7 +295,7 @@ int32_t measure_current(uint8_t pin) {
                        pin == PIN_INA_5V ? ref_current_5v : ref_current_m12v),
              current);
              
-    current = max(0, current);
+    current = max((int32_t)0, current);
              
     return current;
 }
