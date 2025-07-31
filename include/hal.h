@@ -31,7 +31,7 @@ typedef enum {
 // DAC control functions
 void dac_init();
 void write_dac(int cs_pin, uint8_t channel, uint16_t value);
-void hal_set_source(source_net_t net, float voltage);
+void hal_set_source(source_net_t net, int32_t voltage_mv);
 
 // MCP initialization
 void mcp_init();

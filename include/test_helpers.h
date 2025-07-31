@@ -101,17 +101,17 @@ power_rails_state_t wait_for_module_removal(bool& p12v_ok, bool& p5v_ok, bool& m
  * @brief Structure defining range for a value
  */
 typedef struct {
-    float min;  // Minimum acceptable value
-    float max;  // Maximum acceptable value
+    int32_t min;  // Minimum acceptable value in millivolts/milliamps
+    int32_t max;  // Maximum acceptable value in millivolts/milliamps
 } range_t;
 
 /**
  * @brief Structure defining current ranges for all power rails
  */
 typedef struct {
-    range_t p12v;  // +12V rail range in mA
-    range_t m12v;  // -12V rail range in mA
-    range_t p5v;   // +5V rail range in mA
+    range_t p12v;  // +12V rail range in microamps
+    range_t m12v;  // -12V rail range in microamps
+    range_t p5v;   // +5V rail range in microamps
 } power_rails_current_ranges_t;
 
 /**
@@ -127,7 +127,7 @@ typedef enum {
  * @brief Checks if the current consumption on a specific rail is within acceptable range
  * 
  * @param pin The INA pin to measure current from
- * @param range The acceptable current range in mA
+ * @param range The acceptable current range in microamps
  * @param rail_name Name of the rail for display purposes
  * @return true if current measurement is within acceptable range, false otherwise
  */
@@ -145,7 +145,7 @@ bool check_initial_current_consumption(const power_rails_current_ranges_t& range
  * @brief Test if a pin's voltage is within specified range
  * 
  * @param pin The ADC sink pin to test
- * @param range The expected voltage range
+ * @param range The expected voltage range in millivolts
  * @param pin_name The name of the pin for display purposes
  * @return true if the voltage is within range, false otherwise
  */

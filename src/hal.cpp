@@ -327,10 +327,10 @@ void hal_print_current(void) {
              current_12v_ma, current_5v_ma, current_m12v_ma);
 }
 
-void hal_set_source(source_net_t net, float voltage) {
-    // Validate voltage range
-    if (voltage < -5.0f || voltage > 5.0f) {
-        ESP_LOGE(TAG, "Invalid voltage: %.2f V. Must be between -5 and +5 V", voltage);
+void hal_set_source(source_net_t net, int32_t voltage_mv) {
+    // Validate voltage range (in millivolts)
+    if (voltage_mv < -5000 || voltage_mv > 5000) {
+        ESP_LOGE(TAG, "Invalid voltage: %d mV. Must be between -5000 and +5000 mV", voltage_mv);
         return;
     }
 
@@ -339,6 +339,9 @@ void hal_set_source(source_net_t net, float voltage) {
         ESP_LOGE(TAG, "Invalid source net: %d", net);
         return;
     }
+
+    // Convert millivolts to voltage
+    float voltage = voltage_mv / 1000.0f;
 
     // Convert voltage to DAC value (0-65535)
     // -5V = 0, 0V = 32768, +5V = 65535
@@ -362,7 +365,7 @@ void hal_set_source(source_net_t net, float voltage) {
             return;  // Should never reach here due to validation above
     }
 
-    ESP_LOGD(TAG, "Set source %d to %.2f V (DAC value: %d)", net, voltage, dac_value);
+    ESP_LOGD(TAG, "Set source %d to %d mV (%.2f V, DAC value: %d)", net, voltage_mv, voltage, dac_value);
 }
 
 void hal_clear_console(void) {

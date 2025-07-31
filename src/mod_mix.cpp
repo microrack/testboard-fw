@@ -12,14 +12,14 @@ const int LED_BI = IO3;
 const int LED_UNI = IO4;
 
 // Voltage ranges
-const range_t UNI_VOLTAGE_RANGE = {-0.1f, 0.2f};
+const range_t UNI_VOLTAGE_RANGE = {-100, 200};  // -0.1V to 0.2V in millivolts
 const float VOLTAGE_ACCURACY = 0.1f;  // Maximum allowed voltage difference between sinks
 
 // Signal ranges
-const range_t mix_active = {2.8f, 5.1f};    // Mix signal active range
-const range_t mix_inactive = {-0.2f, 0.6f};  // Mix signal inactive range
-const range_t channel_active = {2.8f, 5.1f};    // Channel signal active range
-const range_t channel_inactive = {-0.2f, 0.6f};  // Channel signal inactive range
+const range_t mix_active = {2800, 5100};    // Mix signal active range (2.8V to 5.1V in millivolts)
+const range_t mix_inactive = {-200, 600};  // Mix signal inactive range (-0.2V to 0.6V in millivolts)
+const range_t channel_active = {2800, 5100};    // Channel signal active range (2.8V to 5.1V in millivolts)
+const range_t channel_inactive = {-200, 600};  // Channel signal inactive range (-0.2V to 0.6V in millivolts)
 
 // Pot mappings
 const ADC_sink_t POT_A = ADC_sink_Z_D;
@@ -56,8 +56,8 @@ static void setup_test(void);
 
 static bool check_mode_and_prompt() {
     mode_current_ranges_t mode_ranges = {
-        .active = {21.0f, 27.0f},   // Active mode: 20-27 mA
-        .inactive = {13.0f, 20.0f}  // Inactive mode: 13-18 mA
+        .active = {21000, 27000},   // Active mode: 21-27 mA in microamps
+        .inactive = {13000, 20000}  // Inactive mode: 13-20 mA in microamps
     };
     int mode;
     if(!test_mode(LED_BI, LED_UNI, mode_ranges, &mode)) {
@@ -76,10 +76,10 @@ static void setup_test(void) {
     ESP_LOGI(TAG, "Setting up test environment");
     
     // Set all DAC outputs to 0V
-    hal_set_source(SOURCE_A, 0.0f);
-    hal_set_source(SOURCE_B, 0.0f);
-    hal_set_source(SOURCE_C, 0.0f);
-    hal_set_source(SOURCE_D, 0.0f);
+    hal_set_source(SOURCE_A, 0);
+    hal_set_source(SOURCE_B, 0);
+    hal_set_source(SOURCE_C, 0);
+    hal_set_source(SOURCE_D, 0);
     
     // Set both LED pins to input
     mcp0.pinMode(LED_BI, INPUT);
@@ -100,17 +100,16 @@ static bool test_inactive(void) {
     // Check all mix sinks are inactive
     for (int i = 0; i < mix_sink_count; i++) {
         // Get the actual voltage for detailed error reporting
-        int32_t voltage_raw = hal_adc_read(mix_sinks[i]);
-        float voltage = voltage_raw / 1000.0f;
+        int32_t voltage_mv = hal_adc_read(mix_sinks[i]);
         
-        ESP_LOGI(TAG, "%s voltage: %.2f V (inactive range: %.2f-%.2f V)", 
-                mix_sink_labels[i], voltage, mix_inactive.min, mix_inactive.max);
+        ESP_LOGI(TAG, "%s voltage: %d mV (inactive range: %d-%d mV)", 
+                mix_sink_labels[i], voltage_mv, mix_inactive.min, mix_inactive.max);
         
-        if (voltage < mix_inactive.min || voltage > mix_inactive.max) {
-            ESP_LOGE(TAG, "%s voltage out of inactive range: %.2f V (expected %.2f-%.2f V)",
-                     mix_sink_labels[i], voltage, mix_inactive.min, mix_inactive.max);
-            display_printf("Test 1: All inputs low\n%s voltage: %.2f V\nExpected: %.2f-%.2f V", 
-                          mix_sink_labels[i], voltage, mix_inactive.min, mix_inactive.max);
+        if (voltage_mv < mix_inactive.min || voltage_mv > mix_inactive.max) {
+            ESP_LOGE(TAG, "%s voltage out of inactive range: %d mV (expected %d-%d mV)",
+                     mix_sink_labels[i], voltage_mv, mix_inactive.min, mix_inactive.max);
+            display_printf("Test 1: All inputs low\n%s voltage: %d mV\nExpected: %d-%d mV", 
+                          mix_sink_labels[i], voltage_mv, mix_inactive.min, mix_inactive.max);
             return false;
         }
     }
@@ -118,17 +117,16 @@ static bool test_inactive(void) {
     // Check all channel sinks are inactive
     for (int i = 0; i < channel_sink_count; i++) {
         // Get the actual voltage for detailed error reporting
-        int32_t voltage_raw = hal_adc_read(channel_sinks[i]);
-        float voltage = voltage_raw / 1000.0f;
+        int32_t voltage_mv = hal_adc_read(channel_sinks[i]);
         
-        ESP_LOGI(TAG, "%s voltage: %.2f V (inactive range: %.2f-%.2f V)", 
-                channel_sink_labels[i], voltage, channel_inactive.min, channel_inactive.max);
+        ESP_LOGI(TAG, "%s voltage: %d mV (inactive range: %d-%d mV)", 
+                channel_sink_labels[i], voltage_mv, channel_inactive.min, channel_inactive.max);
         
-        if (voltage < channel_inactive.min || voltage > channel_inactive.max) {
-            ESP_LOGE(TAG, "%s voltage out of inactive range: %.2f V (expected %.2f-%.2f V)",
-                     channel_sink_labels[i], voltage, channel_inactive.min, channel_inactive.max);
-            display_printf("Test 1: All inputs low\n%s voltage: %.2f V\nExpected: %.2f-%.2f V", 
-                          channel_sink_labels[i], voltage, channel_inactive.min, channel_inactive.max);
+        if (voltage_mv < channel_inactive.min || voltage_mv > channel_inactive.max) {
+            ESP_LOGE(TAG, "%s voltage out of inactive range: %d mV (expected %d-%d mV)",
+                     channel_sink_labels[i], voltage_mv, channel_inactive.min, channel_inactive.max);
+            display_printf("Test 1: All inputs low\n%s voltage: %d mV\nExpected: %d-%d mV", 
+                          channel_sink_labels[i], voltage_mv, channel_inactive.min, channel_inactive.max);
             return false;
         }
     }
@@ -147,17 +145,16 @@ static bool test_active_channel(int idx) {
     // Check all mix sinks are active
     for (int i = 0; i < mix_sink_count; i++) {
         // Get the actual voltage for detailed error reporting
-        int32_t voltage_raw = hal_adc_read(mix_sinks[i]);
-        float voltage = voltage_raw / 1000.0f;
+        int32_t voltage_mv = hal_adc_read(mix_sinks[i]);
         
-        ESP_LOGI(TAG, "IO%d high: %s voltage: %.2f V (active range: %.2f-%.2f V)", 
-                source, mix_sink_labels[i], voltage, mix_active.min, mix_active.max);
+        ESP_LOGI(TAG, "IO%d high: %s voltage: %d mV (active range: %d-%d mV)", 
+                source, mix_sink_labels[i], voltage_mv, mix_active.min, mix_active.max);
         
-        if (voltage < mix_active.min || voltage > mix_active.max) {
-            ESP_LOGE(TAG, "%s voltage out of active range with IO%d high: %.2f V (expected %.2f-%.2f V)",
-                     mix_sink_labels[i], source, voltage, mix_active.min, mix_active.max);
-            display_printf("Test: Input IO%d high\n%s voltage: %.2f V\nExpected: %.2f-%.2f V", 
-                          source, mix_sink_labels[i], voltage, mix_active.min, mix_active.max);
+        if (voltage_mv < mix_active.min || voltage_mv > mix_active.max) {
+            ESP_LOGE(TAG, "%s voltage out of active range with IO%d high: %d mV (expected %d-%d mV)",
+                     mix_sink_labels[i], source, voltage_mv, mix_active.min, mix_active.max);
+            display_printf("Test: Input IO%d high\n%s voltage: %d mV\nExpected: %d-%d mV", 
+                          source, mix_sink_labels[i], voltage_mv, mix_active.min, mix_active.max);
             mcp0.digitalWrite(source, LOW);  // Reset source before returning
             return false;
         }
@@ -166,30 +163,29 @@ static bool test_active_channel(int idx) {
     // Check the corresponding channel is active, others are inactive
     for (int i = 0; i < channel_sink_count; i++) {
         // Get the actual voltage for detailed error reporting
-        int32_t voltage_raw = hal_adc_read(channel_sinks[i]);
-        float voltage = voltage_raw / 1000.0f;
+        int32_t voltage_mv = hal_adc_read(channel_sinks[i]);
         
         if (i == idx) {  // Corresponding channel
-            ESP_LOGI(TAG, "IO%d high: %s voltage: %.2f V (active range: %.2f-%.2f V)", 
-                    source, channel_sink_labels[i], voltage, channel_active.min, channel_active.max);
+            ESP_LOGI(TAG, "IO%d high: %s voltage: %d mV (active range: %d-%d mV)", 
+                    source, channel_sink_labels[i], voltage_mv, channel_active.min, channel_active.max);
             
-            if (voltage < channel_active.min || voltage > channel_active.max) {
-                ESP_LOGE(TAG, "%s voltage out of active range with IO%d high: %.2f V (expected %.2f-%.2f V)",
-                         channel_sink_labels[i], source, voltage, channel_active.min, channel_active.max);
-                display_printf("Test: Input IO%d high\n%s should be active\nVoltage: %.2f V\nExpected: %.2f-%.2f V", 
-                              source, channel_sink_labels[i], voltage, channel_active.min, channel_active.max);
+            if (voltage_mv < channel_active.min || voltage_mv > channel_active.max) {
+                ESP_LOGE(TAG, "%s voltage out of active range with IO%d high: %d mV (expected %d-%d mV)",
+                         channel_sink_labels[i], source, voltage_mv, channel_active.min, channel_active.max);
+                display_printf("Test: Input IO%d high\n%s should be active\nVoltage: %d mV\nExpected: %d-%d mV", 
+                              source, channel_sink_labels[i], voltage_mv, channel_active.min, channel_active.max);
                 mcp0.digitalWrite(source, LOW);  // Reset source before returning
                 return false;
             }
         } else {  // Other channels
-            ESP_LOGI(TAG, "IO%d high: %s voltage: %.2f V (inactive range: %.2f-%.2f V)", 
-                    source, channel_sink_labels[i], voltage, channel_inactive.min, channel_inactive.max);
+            ESP_LOGI(TAG, "IO%d high: %s voltage: %d mV (inactive range: %d-%d mV)", 
+                    source, channel_sink_labels[i], voltage_mv, channel_inactive.min, channel_inactive.max);
             
-            if (voltage < channel_inactive.min || voltage > channel_inactive.max) {
-                ESP_LOGE(TAG, "%s voltage out of inactive range with IO%d high: %.2f V (expected %.2f-%.2f V)",
-                         channel_sink_labels[i], source, voltage, channel_inactive.min, channel_inactive.max);
-                display_printf("Test: Input IO%d high\n%s should be inactive\nVoltage: %.2f V\nExpected: %.2f-%.2f V", 
-                              source, channel_sink_labels[i], voltage, channel_inactive.min, channel_inactive.max);
+            if (voltage_mv < channel_inactive.min || voltage_mv > channel_inactive.max) {
+                ESP_LOGE(TAG, "%s voltage out of inactive range with IO%d high: %d mV (expected %d-%d mV)",
+                         channel_sink_labels[i], source, voltage_mv, channel_inactive.min, channel_inactive.max);
+                display_printf("Test: Input IO%d high\n%s should be inactive\nVoltage: %d mV\nExpected: %d-%d mV", 
+                              source, channel_sink_labels[i], voltage_mv, channel_inactive.min, channel_inactive.max);
                 mcp0.digitalWrite(source, LOW);  // Reset source before returning
                 return false;
             }
@@ -207,10 +203,10 @@ bool test_inputs_outputs(void) {
     ESP_LOGI(TAG, "Testing inputs and outputs");
     
     // Set all sources to 5V to ensure signals can pass
-    hal_set_source(SOURCE_A, 5.0f);
-    hal_set_source(SOURCE_B, 5.0f);
-    hal_set_source(SOURCE_C, 5.0f);
-    hal_set_source(SOURCE_D, 0.0f);  // Keep D at 0V
+    hal_set_source(SOURCE_A, 5000);
+    hal_set_source(SOURCE_B, 5000);
+    hal_set_source(SOURCE_C, 5000);
+    hal_set_source(SOURCE_D, 0);  // Keep D at 0V
     
     // Set all IO0..IO2 to output with logical 0
     for (int i = IO0; i <= IO2; i++) {
@@ -243,20 +239,20 @@ bool mod_mix_handler(void) {
     // Setup test environment
     setup_test();
 
-    // Check current on each power rail
-    TEST_RUN(check_current(INA_PIN_12V, {22.0f, 40.0f}, "+12V"));
-    TEST_RUN(check_current(INA_PIN_M12V, {22.0f, 80.0f}, "-12V"));
-    TEST_RUN(check_current(INA_PIN_5V, {13.0f, 25.0f}, "+5V"));
+    // Check current on each power rail (in microamps)
+    TEST_RUN(check_current(INA_PIN_12V, range_t{22000, 40000}, "+12V"));
+    TEST_RUN(check_current(INA_PIN_M12V, range_t{22000, 80000}, "-12V"));
+    TEST_RUN(check_current(INA_PIN_5V, range_t{13000, 25000}, "+5V"));
 
     TEST_RUN(check_mode_and_prompt());
-    TEST_RUN(test_pin_range(POT_A, UNI_VOLTAGE_RANGE, "Pot 1"));
-    TEST_RUN(test_pin_range(POT_B, UNI_VOLTAGE_RANGE, "Pot 2"));
-    TEST_RUN(test_pin_range(POT_C, UNI_VOLTAGE_RANGE, "Pot 3"));
+    TEST_RUN(test_pin_range(POT_A, range_t{-100, 200}, "Pot 1"));
+    TEST_RUN(test_pin_range(POT_B, range_t{-100, 200}, "Pot 2"));
+    TEST_RUN(test_pin_range(POT_C, range_t{-100, 200}, "Pot 3"));
     
     // Test +5V source
-    TEST_RUN(test_pin_pd(PD_B, {4.9f, 5.1f}, {4.9f, 5.1f}, "+5V"));
+    TEST_RUN(test_pin_pd(PD_B, range_t{4900, 5100}, range_t{4900, 5100}, "+5V"));
     // Test -5V source
-    TEST_RUN(test_pin_pd(PD_C, {-5.1f, -4.1f}, {-5.1f, -4.1f}, "-5V"));
+    TEST_RUN(test_pin_pd(PD_C, range_t{-5100, -4100}, range_t{-5100, -4100}, "-5V"));
 
     // Test inputs and outputs functionality
     TEST_RUN(test_inputs_outputs());
@@ -268,12 +264,12 @@ static void prepare_inputs_outputs(int input) {
     ESP_LOGI(TAG, "Testing inputs and outputs");
 
     // Set source D to 0V
-    hal_set_source(SOURCE_D, 0.0f);
+    hal_set_source(SOURCE_D, 0);
 
     // Set all gain
-    hal_set_source(SOURCE_A, 5.0f);
-    hal_set_source(SOURCE_B, 5.0f);
-    hal_set_source(SOURCE_C, 5.0f);
+    hal_set_source(SOURCE_A, 5000);
+    hal_set_source(SOURCE_B, 5000);
+    hal_set_source(SOURCE_C, 5000);
 
     // Set all IO0 to IO2 to output with logical 0
     for (int i = IO0; i <= IO2; i++) {
@@ -292,7 +288,7 @@ static void prepare_inputs_outputs(int input) {
 }
 
 static bool check_mix_outputs(range_t range) {
-    ESP_LOGI(TAG, "Checking mix outputs with range: %.2f-%.2f V", range.min, range.max);
+    ESP_LOGI(TAG, "Checking mix outputs with range: %d-%d mV", range.min, range.max);
     
     TEST_RUN(test_pin_range(ADC_sink_1k_A, range, "A"));
     TEST_RUN(test_pin_range(ADC_sink_1k_B, range, "B"));

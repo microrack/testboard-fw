@@ -92,20 +92,20 @@ bool check_current(ina_pin_t pin, const range_t& range, const char* rail_name) {
     // Measure current
     int32_t current_ua = measure_current(pin);
     
-    // Convert to mA for logging and comparison
-    float current_ma = current_ua / 1000.0f;
+    // Convert to milliamps for comparison
+    int32_t current_ma = current_ua / 1000;
     
-    ESP_LOGI(TAG, "%s current: %.2f mA (acceptable range: %.2f-%.2f mA)",
+    ESP_LOGI(TAG, "%s current: %d mA (acceptable range: %d-%d uA)",
              rail_name, current_ma, range.min, range.max);
     
     // Check if current is within acceptable range
-    bool current_ok = (current_ma >= range.min && current_ma <= range.max);
+    bool current_ok = (current_ua >= range.min && current_ua <= range.max);
     
     if (!current_ok) {
-        ESP_LOGE(TAG, "%s current out of range: %.2f mA (expected %.2f-%.2f mA)",
-                 rail_name, current_ma, range.min, range.max);
-        display_printf("%s current out of range\n%.2f mA (%.2f-%.2f mA)",
-                      rail_name, current_ma, range.min, range.max);
+        ESP_LOGE(TAG, "%s current out of range: %d uA (expected %d-%d uA)",
+                 rail_name, current_ua, range.min, range.max);
+        display_printf("%s current out of range\n%d uA (%d-%d uA)",
+                      rail_name, current_ua, range.min, range.max);
     }
     
     return current_ok;
@@ -125,18 +125,17 @@ bool test_pin_range(ADC_sink_t pin, const range_t& range, const char* pin_name) 
     ESP_LOGI(TAG, "Testing %s", pin_name);
 
     // Measure voltage for the pin
-    int32_t voltage_raw = hal_adc_read(pin);
-    float voltage = voltage_raw / 1000.0f;  // Convert to volts
+    int32_t voltage_mv = hal_adc_read(pin);
 
-    ESP_LOGI(TAG, "%s voltage: %.2f V (acceptable range: %.2f-%.2f V)",
-             pin_name, voltage, range.min, range.max);
+    ESP_LOGI(TAG, "%s voltage: %d mV (acceptable range: %d-%d mV)",
+             pin_name, voltage_mv, range.min, range.max);
 
     // Check voltage range
-    if (voltage < range.min || voltage > range.max) {
-        ESP_LOGE(TAG, "%s voltage out of range: %.2f V (expected %.2f-%.2f V)",
-                 pin_name, voltage, range.min, range.max);
-        display_printf("%s voltage out of range\n%.2f V (%.2f-%.2f V)", 
-                      pin_name, voltage, range.min, range.max);
+    if (voltage_mv < range.min || voltage_mv > range.max) {
+        ESP_LOGE(TAG, "%s voltage out of range: %d mV (expected %d-%d mV)",
+                 pin_name, voltage_mv, range.min, range.max);
+        display_printf("%s voltage out of range\n%d mV (%d-%d mV)", 
+                      pin_name, voltage_mv, range.min, range.max);
         return false;
     }
 
