@@ -7,6 +7,7 @@ static const char* TAG = "modules";
 // Module definitions
 static const module_info_t modules[] = {
     {MODULE_ID_MIX, "mod_mix", mod_mix_handler},
+    {MODULE_ID_JACKET, "mod_jacket", mod_jacket_handler},
     // Add more modules here as they are implemented
     {0, "unknown", mod_unknown_handler}  // Default handler for unknown modules
 };
