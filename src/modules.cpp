@@ -163,11 +163,19 @@ bool init_modules_from_fs() {
             char token[64];
             test_operation_t& op = operations_buffer[operation_index];
             
+            // Check for repeat flag (+ at end of line)
+            bool repeat_flag = false;
+            if (line.endsWith("+")) {
+                repeat_flag = true;
+                line = line.substring(0, line.length() - 1); // Remove the +
+                line_str = line.c_str();
+            }
+            
             line_str = get_token(line_str, token, sizeof(token));
             
             if (strcmp(token, "src") == 0) {
                 op.op = TEST_OP_SOURCE;
-                op.repeat = false;
+                op.repeat = repeat_flag;
                 
                 line_str = get_token(line_str, token, sizeof(token));
                 op.pin = string_to_source(token);
@@ -178,7 +186,7 @@ bool init_modules_from_fs() {
                 
             } else if (strcmp(token, "io") == 0) {
                 op.op = TEST_OP_IO;
-                op.repeat = false;
+                op.repeat = repeat_flag;
                 
                 line_str = get_token(line_str, token, sizeof(token));
                 op.pin = atoi(token);
@@ -189,7 +197,7 @@ bool init_modules_from_fs() {
                 
             } else if (strcmp(token, "pd") == 0) {
                 op.op = TEST_OP_SINK_PD;
-                op.repeat = false;
+                op.repeat = repeat_flag;
                 
                 line_str = get_token(line_str, token, sizeof(token));
                 op.pin = 0; // Assuming PIN_SINK_PD_A
@@ -200,7 +208,7 @@ bool init_modules_from_fs() {
                 
             } else if (strcmp(token, "i") == 0) {
                 op.op = TEST_OP_CHECK_CURRENT;
-                op.repeat = false;
+                op.repeat = repeat_flag;
                 
                 line_str = get_token(line_str, token, sizeof(token));
                 op.pin = string_to_current_rail(token);
@@ -213,7 +221,7 @@ bool init_modules_from_fs() {
                 
             } else if (strcmp(token, "v") == 0) {
                 op.op = TEST_OP_CHECK_PIN;
-                op.repeat = false;
+                op.repeat = repeat_flag;
                 
                 line_str = get_token(line_str, token, sizeof(token));
                 op.pin = string_to_voltage_pin(token);
