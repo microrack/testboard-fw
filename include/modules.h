@@ -7,7 +7,7 @@
 
 // Module IDs
 #define MODULE_ID_MIX 10
-#define MODULE_ID_JACKET 11
+#define MODULE_ID_JACKET 0x09
 
 // Module handler function type
 typedef bool (*module_handler_t)(void);

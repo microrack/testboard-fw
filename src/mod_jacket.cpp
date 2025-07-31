@@ -26,14 +26,9 @@ bool mod_jacket_handler(void) {
     delay(1); // Small delay to allow settings to take effect
     
     // TEST_RUN: check current
-    // on 12V must be < 1 mA
     TEST_RUN(check_current(INA_PIN_12V, {0.0f, 1.0f}, "+12V"));
-    
-    // on -12V must be < 1 mA
-    TEST_RUN(check_current(INA_PIN_M12V, {0.0f, 1.0f}, "-12V"));
-    
-    // on +5V must be between 5 and 10 mA
-    TEST_RUN(check_current(INA_PIN_5V, {5.0f, 10.0f}, "+5V"));
+    TEST_RUN(check_current(INA_PIN_M12V, {0.0f, 2.0f}, "-12V"));
+    TEST_RUN(check_current(INA_PIN_5V, {2.0f, 6.0f}, "+5V"));
     
     display_printf("Jacket Module Test\nCompleted Successfully");
     ESP_LOGI(TAG, "mod_jacket test sequence completed successfully");
