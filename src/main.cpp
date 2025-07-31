@@ -13,6 +13,7 @@
 #include "test_helpers.h"
 #include "display.h"
 #include "modules.h"
+#include "webserver.h"
 
 static const char* TAG = "main";
 
@@ -40,6 +41,12 @@ void setup() {
     // Initialize modules from filesystem
     if (!init_modules_from_fs()) {
         ESP_LOGE(TAG, "Failed to initialize modules from filesystem");
+        for(;;); // Don't proceed, loop forever
+    }
+
+    // Initialize web server
+    if (!init_webserver()) {
+        ESP_LOGE(TAG, "Failed to initialize web server");
         for(;;); // Don't proceed, loop forever
     }
 
