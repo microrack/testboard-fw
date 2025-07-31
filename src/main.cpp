@@ -37,6 +37,12 @@ void setup() {
 
     ESP_LOGI(TAG, "Hello, Microrack!");
 
+    // Initialize modules from filesystem
+    if (!init_modules_from_fs()) {
+        ESP_LOGE(TAG, "Failed to initialize modules from filesystem");
+        for(;;); // Don't proceed, loop forever
+    }
+
     // Perform startup sequence
     if (!perform_startup_sequence()) {
         ESP_LOGE(TAG, "Startup sequence failed");
@@ -56,6 +62,17 @@ void loop() {
     // Get adapter ID and corresponding module info
     uint8_t adapter_id = hal_adapter_id();
     const module_info_t* module = get_module_info(adapter_id);
+    
+    if (!module) {
+        ESP_LOGE(TAG, "Unknown module detected (ID: %d)", adapter_id);
+        display_printf("Unknown module type\nID: %d", adapter_id);
+        mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+        mcp1.digitalWrite(PIN_LED_OK, LOW);
+        
+        // Wait for module removal
+        wait_for_module_removal(p12v_ok, p5v_ok, m12v_ok);
+        return;
+    }
     
     ESP_LOGI(TAG, "Module detected: %s (ID: %d)", module->name, adapter_id);
     display_printf("Module: %s", module->name);
