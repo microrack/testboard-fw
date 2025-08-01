@@ -75,9 +75,9 @@ bool init_modules_from_fs() {
         return false;
     }
     
-    File file = LittleFS.open("/modules.txt", "r");
+    File file = LittleFS.open("/config", "r");
     if (!file) {
-        ESP_LOGE(TAG, "Failed to open modules.txt");
+        ESP_LOGE(TAG, "Failed to open config");
         return false;
     }
     

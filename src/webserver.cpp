@@ -121,9 +121,9 @@ void handleRoot() {
 void handleGetConfig() {
     ESP_LOGI(TAG, "GET /config - Downloading configuration");
     
-    File configFile = LittleFS.open("/modules.txt", "r");
+    File configFile = LittleFS.open("/config", "r");
     if (!configFile) {
-        ESP_LOGE(TAG, "Failed to open modules.txt for reading");
+        ESP_LOGE(TAG, "Failed to open config for reading");
         server.send(404, "text/plain", "Configuration file not found");
         return;
     }
@@ -131,7 +131,7 @@ void handleGetConfig() {
     String configContent = configFile.readString();
     configFile.close();
     
-    server.sendHeader("Content-Disposition", "attachment; filename=modules.txt");
+    server.sendHeader("Content-Disposition", "attachment; filename=config");
     server.send(200, "text/plain", configContent);
     ESP_LOGI(TAG, "Configuration sent successfully");
 }
@@ -143,9 +143,9 @@ void handlePostConfig() {
         String newConfig = server.arg("plain");
         
         // Write new configuration to filesystem
-        File configFile = LittleFS.open("/modules.txt", "w");
+        File configFile = LittleFS.open("/config", "w");
         if (!configFile) {
-            ESP_LOGE(TAG, "Failed to open modules.txt for writing");
+            ESP_LOGE(TAG, "Failed to open config for writing");
             server.send(500, "text/plain", "Failed to save configuration");
             return;
         }

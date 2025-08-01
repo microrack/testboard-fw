@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Testboard Configuration</title>
+    <title>Testboard Configuration Editor</title>
     <meta charset="utf-8">
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 50px auto;
+            max-width: 1200px;
+            margin: 20px auto;
             padding: 20px;
             background-color: #f5f5f5;
         }
@@ -22,38 +22,157 @@
             text-align: center;
             margin-bottom: 30px;
         }
-        .button-group {
+        .top-buttons {
             display: flex;
-            gap: 20px;
+            gap: 15px;
             margin-bottom: 30px;
+            flex-wrap: wrap;
         }
         .btn {
-            flex: 1;
-            padding: 15px 20px;
+            padding: 12px 20px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
             transition: background-color 0.3s;
+            min-width: 100px;
         }
-        .btn-download {
-            background-color: #4CAF50;
-            color: white;
-        }
-        .btn-download:hover {
-            background-color: #45a049;
-        }
-        .btn-upload {
-            background-color: #2196F3;
-            color: white;
-        }
-        .btn-upload:hover {
-            background-color: #1976D2;
-        }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-primary:hover { background-color: #0056b3; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-success:hover { background-color: #1e7e34; }
+        .btn-warning { background-color: #ffc107; color: black; }
+        .btn-warning:hover { background-color: #e0a800; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        .btn-danger:hover { background-color: #c82333; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        .btn-secondary:hover { background-color: #545b62; }
+        
         .file-input {
             display: none;
         }
+        
+        .module-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+        }
+        
+        .module-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .module-header h3 {
+            margin: 0;
+            color: #495057;
+        }
+        
+        .module-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .module-selector input, .module-selector select {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .operations-list {
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .operation-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+            background-color: #f8f9fa;
+        }
+        
+        .operation-line:nth-child(even) {
+            background-color: #ffffff;
+        }
+        
+        .operation-line:last-child {
+            border-bottom: none;
+        }
+        
+        .line-number {
+            min-width: 30px;
+            font-weight: bold;
+            color: #6c757d;
+            text-align: center;
+        }
+        
+        .operation-type {
+            min-width: 120px;
+        }
+        
+        .operation-type select {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .operation-params {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            align-items: center;
+        }
+        
+        .param-input {
+            padding: 6px 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 12px;
+            min-width: 80px;
+        }
+        
+        .param-select {
+            padding: 6px 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 12px;
+            min-width: 80px;
+        }
+        
+        .repeat-checkbox {
+            margin: 0;
+            transform: scale(1.2);
+        }
+        
+        .line-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 12px;
+            min-width: auto;
+        }
+        
+        .add-operation {
+            padding: 15px;
+            text-align: center;
+            background-color: #e9ecef;
+            border-top: 1px solid #dee2e6;
+        }
+        
         .status {
             padding: 15px;
             border-radius: 5px;
@@ -70,109 +189,362 @@
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
-        .current-config {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 5px;
-            border: 1px solid #dee2e6;
-            margin-top: 20px;
-        }
-        pre {
-            margin: 0;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            font-size: 12px;
-            color: #666;
+        
+        .hidden {
+            display: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Testboard Configuration</h1>
+        <h1>Testboard Configuration Editor</h1>
         
-        <div class="button-group">
-            <button class="btn btn-download" onclick="downloadConfig()">Download Config</button>
-            <button class="btn btn-upload" onclick="document.getElementById('fileInput').click()">Upload Config</button>
+        <div class="top-buttons">
+            <button class="btn btn-primary" onclick="downloadFile()">Download File</button>
+            <button class="btn btn-warning" onclick="reloadFromDevice()">Reload</button>
+            <button class="btn btn-success" onclick="saveToDevice()">Save</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">Upload File</button>
         </div>
         
-        <input type="file" id="fileInput" class="file-input" accept=".txt" onchange="uploadConfig(this)">
+        <input type="file" id="fileInput" class="file-input" accept=".txt" onchange="uploadFile(this)">
         
         <div id="status" class="status"></div>
         
-        <div class="current-config">
-            <h3>Current Configuration:</h3>
-            <pre id="currentConfig">Loading...</pre>
+        <div class="module-section">
+            <div class="module-header">
+                <h3>Select Module</h3>
+                <div class="module-selector">
+                    <select id="moduleSelector" onchange="selectModule(this.value)">
+                        <option value="">Select module</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <div id="operationsContainer" class="module-section" style="display: none;">
+            <!-- Operations for selected module will be shown here -->
         </div>
     </div>
 
     <script>
+        let currentConfig = {
+            modules: []
+        };
+        let selectedModuleIndex = -1;
+        
+        // Operation types and their parameters
+        const operationTypes = {
+            'comment': { name: 'Comment', params: ['text'] },
+            'src': { name: 'Source', params: ['pin', 'voltage_mv'] },
+            'io': { name: 'IO', params: ['pin', 'state'] },
+            'pd': { name: 'Pull-down', params: ['pin', 'state'] },
+            'i': { name: 'Check Current', params: ['rail', 'low_uA', 'high_uA'] },
+            'v': { name: 'Check Voltage', params: ['pin', 'low_mV', 'high_mV'] }
+        };
+        
+        // Parameter options
+        const paramOptions = {
+            'pin': ['A', 'B', 'C', 'D', 'E', 'F', 'pdA', 'pdB', 'pdC', 'zD', 'zE', 'zF'],
+            'state': ['h', 'l', 'z'],
+            'pd_state': ['p', 'z'],
+            'rail': ['+12', '+5', '-12']
+        };
+        
         // Load current configuration on page load
         window.onload = function() {
             loadCurrentConfig();
         };
 
-        function downloadConfig() {
+        function loadCurrentConfig() {
             fetch('/config')
                 .then(response => response.text())
                 .then(data => {
-                    const blob = new Blob([data], { type: 'text/plain' });
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'modules.txt';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    showStatus('Configuration downloaded successfully!', 'success');
+                    parseConfig(data);
+                    renderConfig();
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    showStatus('Failed to download configuration', 'error');
+                    showStatus('Failed to load configuration', 'error');
                 });
         }
 
-        function uploadConfig(input) {
+        function parseConfig(text) {
+            currentConfig.modules = [];
+            const lines = text.split('\n');
+            let currentModule = null;
+            
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+                
+                if (line.startsWith('module ')) {
+                    const parts = line.split(' ');
+                    if (parts.length >= 3) {
+                        currentModule = {
+                            name: parts[1],
+                            id: parts[2],
+                            operations: []
+                        };
+                        currentConfig.modules.push(currentModule);
+                    }
+                } else if (line.startsWith('#') && currentModule) {
+                    currentModule.operations.push({
+                        type: 'comment',
+                        text: line.substring(1).trim(),
+                        repeat: false
+                    });
+                } else if (currentModule) {
+                    const parts = line.split(' ');
+                    if (parts.length > 0) {
+                        const operation = {
+                            type: parts[0],
+                            repeat: line.endsWith(' +'),
+                            params: parts.slice(1)
+                        };
+                        if (operation.repeat) {
+                            operation.params[operation.params.length - 1] = operation.params[operation.params.length - 1].replace(' +', '');
+                        }
+                        currentModule.operations.push(operation);
+                    }
+                }
+            }
+            
+            if (currentConfig.modules.length === 0) {
+                addModule();
+            }
+        }
+
+        function renderConfig() {
+            // Update module selector
+            const moduleSelector = document.getElementById('moduleSelector');
+            moduleSelector.innerHTML = '<option value="">Select module</option>';
+            
+            currentConfig.modules.forEach((module, moduleIndex) => {
+                const option = document.createElement('option');
+                option.value = moduleIndex;
+                option.textContent = `${module.name} (ID: ${module.id})`;
+                moduleSelector.appendChild(option);
+            });
+            
+            // Show operations for selected module
+            if (selectedModuleIndex >= 0 && selectedModuleIndex < currentConfig.modules.length) {
+                showModuleOperations(selectedModuleIndex);
+            }
+        }
+        
+        function selectModule(moduleIndex) {
+            selectedModuleIndex = parseInt(moduleIndex);
+            if (selectedModuleIndex >= 0 && selectedModuleIndex < currentConfig.modules.length) {
+                showModuleOperations(selectedModuleIndex);
+            } else {
+                document.getElementById('operationsContainer').style.display = 'none';
+            }
+        }
+        
+        function showModuleOperations(moduleIndex) {
+            const container = document.getElementById('operationsContainer');
+            const module = currentConfig.modules[moduleIndex];
+            
+            container.innerHTML = `
+                <div class="module-header">
+                    <h3>Operations for ${module.name} (ID: ${module.id})</h3>
+                </div>
+                <div class="operations-list">
+                    ${module.operations.map((op, opIndex) => renderOperationLine(moduleIndex, opIndex, op)).join('')}
+                    <div class="add-operation">
+                        <button class="btn btn-primary btn-small" onclick="addOperation(${moduleIndex})">Add Operation</button>
+                    </div>
+                </div>
+            `;
+            container.style.display = 'block';
+        }
+
+        function renderOperationLine(moduleIndex, opIndex, operation) {
+            const lineNumber = opIndex + 1;
+            let paramsHtml = '';
+            
+            if (operation.type === 'comment') {
+                paramsHtml = `<input type="text" class="param-input" value="${operation.text || ''}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, 0, this.value)" placeholder="Comment text">`;
+            } else {
+                const opType = operationTypes[operation.type];
+                if (opType) {
+                    paramsHtml = opType.params.map((param, paramIndex) => {
+                        const value = operation.params[paramIndex] || '';
+                        if (paramOptions[param]) {
+                            return `<select class="param-select" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, ${paramIndex}, this.value)">
+                                <option value="">Select ${param}</option>
+                                ${paramOptions[param].map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('')}
+                            </select>`;
+                        } else {
+                            return `<input type="text" class="param-input" value="${value}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, ${paramIndex}, this.value)" placeholder="${param}">`;
+                        }
+                    }).join('');
+                }
+            }
+            
+            return `
+                <div class="operation-line">
+                    <div class="line-number">${lineNumber}</div>
+                    <div class="operation-type">
+                        <select onchange="updateOperationType(${moduleIndex}, ${opIndex}, this.value)">
+                            ${Object.keys(operationTypes).map(type => 
+                                `<option value="${type}" ${type === operation.type ? 'selected' : ''}>${operationTypes[type].name}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="operation-params">
+                        ${paramsHtml}
+                        ${operation.type !== 'comment' ? `<input type="checkbox" class="repeat-checkbox" ${operation.repeat ? 'checked' : ''} onchange="updateOperationRepeat(${moduleIndex}, ${opIndex}, this.checked)">` : ''}
+                        ${operation.type !== 'comment' ? '<span>Repeat</span>' : ''}
+                    </div>
+                    <div class="line-actions">
+                        <button class="btn btn-danger btn-small" onclick="removeOperation(${moduleIndex}, ${opIndex})">Remove</button>
+                        <button class="btn btn-primary btn-small" onclick="insertOperation(${moduleIndex}, ${opIndex})">Insert</button>
+                    </div>
+                </div>
+            `;
+        }
+
+
+
+        function addOperation(moduleIndex) {
+            if (moduleIndex >= 0 && moduleIndex < currentConfig.modules.length) {
+                currentConfig.modules[moduleIndex].operations.push({
+                    type: 'comment',
+                    text: '',
+                    repeat: false
+                });
+                showModuleOperations(moduleIndex);
+            }
+        }
+
+        function removeOperation(moduleIndex, opIndex) {
+            if (moduleIndex >= 0 && moduleIndex < currentConfig.modules.length) {
+                currentConfig.modules[moduleIndex].operations.splice(opIndex, 1);
+                showModuleOperations(moduleIndex);
+            }
+        }
+
+        function insertOperation(moduleIndex, opIndex) {
+            if (moduleIndex >= 0 && moduleIndex < currentConfig.modules.length) {
+                currentConfig.modules[moduleIndex].operations.splice(opIndex + 1, 0, {
+                    type: 'comment',
+                    text: '',
+                    repeat: false
+                });
+                showModuleOperations(moduleIndex);
+            }
+        }
+
+        function updateOperationType(moduleIndex, opIndex, type) {
+            if (moduleIndex >= 0 && moduleIndex < currentConfig.modules.length) {
+                const operation = currentConfig.modules[moduleIndex].operations[opIndex];
+                operation.type = type;
+                if (type === 'comment') {
+                    operation.text = '';
+                    operation.repeat = false;
+                } else {
+                    operation.params = [];
+                    operation.repeat = false;
+                }
+                showModuleOperations(moduleIndex);
+            }
+        }
+
+        function updateOperationParam(moduleIndex, opIndex, paramIndex, value) {
+            if (moduleIndex >= 0 && moduleIndex < currentConfig.modules.length) {
+                const operation = currentConfig.modules[moduleIndex].operations[opIndex];
+                if (operation.type === 'comment') {
+                    operation.text = value;
+                } else {
+                    if (!operation.params) operation.params = [];
+                    operation.params[paramIndex] = value;
+                }
+            }
+        }
+
+        function updateOperationRepeat(moduleIndex, opIndex, repeat) {
+            if (moduleIndex >= 0 && moduleIndex < currentConfig.modules.length) {
+                currentConfig.modules[moduleIndex].operations[opIndex].repeat = repeat;
+            }
+        }
+
+        function generateConfigText() {
+            let text = '';
+            currentConfig.modules.forEach(module => {
+                text += `module ${module.name} ${module.id}\n`;
+                module.operations.forEach(op => {
+                    if (op.type === 'comment') {
+                        text += `# ${op.text}\n`;
+                    } else {
+                        text += op.type;
+                        if (op.params) {
+                            text += ' ' + op.params.join(' ');
+                        }
+                        if (op.repeat) {
+                            text += ' +';
+                        }
+                        text += '\n';
+                    }
+                });
+            });
+            return text;
+        }
+
+        function downloadFile() {
+            const text = generateConfigText();
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+                                a.download = 'config';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            showStatus('Configuration downloaded successfully!', 'success');
+        }
+
+        function reloadFromDevice() {
+            loadCurrentConfig();
+            showStatus('Configuration reloaded from device', 'success');
+        }
+
+        function saveToDevice() {
+            const text = generateConfigText();
+            fetch('/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain',
+                },
+                body: text
+            })
+            .then(response => {
+                if (response.ok) {
+                    showStatus('Configuration saved to device successfully! Board will use new config on next restart.', 'success');
+                } else {
+                    throw new Error('Save failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showStatus('Failed to save configuration to device', 'error');
+            });
+        }
+
+        function uploadFile(input) {
             const file = input.files[0];
             if (!file) return;
 
             const reader = new FileReader();
             reader.onload = function(e) {
                 const content = e.target.result;
-                
-                fetch('/config', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'text/plain',
-                    },
-                    body: content
-                })
-                .then(response => {
-                    if (response.ok) {
-                        showStatus('Configuration uploaded successfully! Board will use new config on next restart.', 'success');
-                        loadCurrentConfig(); // Reload current config display
-                    } else {
-                        throw new Error('Upload failed');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showStatus('Failed to upload configuration', 'error');
-                });
+                parseConfig(content);
+                renderConfig();
+                showStatus('Configuration loaded from file successfully!', 'success');
             };
             reader.readAsText(file);
-        }
-
-        function loadCurrentConfig() {
-            fetch('/config')
-                .then(response => response.text())
-                .then(data => {
-                    document.getElementById('currentConfig').textContent = data;
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    document.getElementById('currentConfig').textContent = 'Failed to load configuration';
-                });
+            input.value = ''; // Reset input
         }
 
         function showStatus(message, type) {
