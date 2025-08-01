@@ -85,6 +85,40 @@
             font-size: 14px;
         }
         
+        .edit-mode-tabs {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .edit-mode-tabs .btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            min-width: auto;
+        }
+        
+        .edit-mode-tabs .btn.active {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .edit-mode-tabs .btn:not(.active) {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .raw-textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 15px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            resize: none;
+            overflow: hidden;
+        }
+        
         .operations-list {
             border: 1px solid #dee2e6;
             border-radius: 5px;
@@ -217,6 +251,10 @@
                     <select id="moduleSelector" onchange="selectModule(this.value)">
                         <option value="">Select module</option>
                     </select>
+                    <div class="edit-mode-tabs">
+                        <button id="editTab" class="btn btn-primary btn-small active" onclick="switchEditMode('edit')">Edit</button>
+                        <button id="rawTab" class="btn btn-secondary btn-small" onclick="switchEditMode('raw')">Raw</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -231,6 +269,7 @@
             modules: []
         };
         let selectedModuleIndex = -1;
+        let editMode = 'edit'; // 'edit' or 'raw'
         
         // Operation types and their parameters
         const operationTypes = {
@@ -341,21 +380,53 @@
             }
         }
         
+        function switchEditMode(mode) {
+            editMode = mode;
+            
+            // Update tab buttons
+            document.getElementById('editTab').className = `btn btn-primary btn-small ${mode === 'edit' ? 'active' : ''}`;
+            document.getElementById('rawTab').className = `btn btn-secondary btn-small ${mode === 'raw' ? 'active' : ''}`;
+            
+            // Show appropriate content
+            if (selectedModuleIndex >= 0 && selectedModuleIndex < currentConfig.modules.length) {
+                showModuleOperations(selectedModuleIndex);
+            }
+        }
+        
         function showModuleOperations(moduleIndex) {
             const container = document.getElementById('operationsContainer');
             const module = currentConfig.modules[moduleIndex];
             
-            container.innerHTML = `
-                <div class="module-header">
-                    <h3>Operations for ${module.name} (ID: ${module.id})</h3>
-                </div>
-                <div class="operations-list">
-                    ${module.operations.map((op, opIndex) => renderOperationLine(moduleIndex, opIndex, op)).join('')}
-                    <div class="add-operation">
-                        <button class="btn btn-primary btn-small" onclick="addOperation(${moduleIndex})">Add Operation</button>
+            if (editMode === 'edit') {
+                container.innerHTML = `
+                    <div class="module-header">
+                        <h3>Operations for ${module.name} (ID: ${module.id})</h3>
                     </div>
-                </div>
-            `;
+                    <div class="operations-list">
+                        ${module.operations.map((op, opIndex) => renderOperationLine(moduleIndex, opIndex, op)).join('')}
+                        <div class="add-operation">
+                            <button class="btn btn-primary btn-small" onclick="addOperation(${moduleIndex})">Add Operation</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Raw mode - show textarea with module operations as text
+                const moduleText = generateModuleText(module);
+                container.innerHTML = `
+                    <div class="module-header">
+                        <h3>Raw Text for ${module.name} (ID: ${module.id})</h3>
+                    </div>
+                    <textarea id="rawModuleText" class="raw-textarea" onchange="updateModuleFromRaw(${moduleIndex}, this.value)" oninput="autoResizeTextarea(this)">${moduleText}</textarea>
+                `;
+                
+                // Auto-resize textarea after it's created
+                setTimeout(() => {
+                    const textarea = document.getElementById('rawModuleText');
+                    if (textarea) {
+                        autoResizeTextarea(textarea);
+                    }
+                }, 10);
+            }
             container.style.display = 'block';
         }
 
@@ -469,26 +540,71 @@
             }
         }
 
+        function generateModuleText(module) {
+            let text = '';
+            module.operations.forEach(op => {
+                if (op.type === 'comment') {
+                    text += `# ${op.text}\n`;
+                } else {
+                    text += op.type;
+                    if (op.params) {
+                        text += ' ' + op.params.join(' ');
+                    }
+                    if (op.repeat) {
+                        text += ' +';
+                    }
+                    text += '\n';
+                }
+            });
+            return text;
+        }
+        
         function generateConfigText() {
             let text = '';
             currentConfig.modules.forEach(module => {
                 text += `module ${module.name} ${module.id}\n`;
-                module.operations.forEach(op => {
-                    if (op.type === 'comment') {
-                        text += `# ${op.text}\n`;
-                    } else {
-                        text += op.type;
-                        if (op.params) {
-                            text += ' ' + op.params.join(' ');
-                        }
-                        if (op.repeat) {
-                            text += ' +';
-                        }
-                        text += '\n';
-                    }
-                });
+                text += generateModuleText(module);
             });
             return text;
+        }
+        
+        function autoResizeTextarea(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        }
+        
+        function updateModuleFromRaw(moduleIndex, rawText) {
+            if (moduleIndex >= 0 && moduleIndex < currentConfig.modules.length) {
+                const module = currentConfig.modules[moduleIndex];
+                module.operations = [];
+                
+                const lines = rawText.split('\n');
+                for (let line of lines) {
+                    line = line.trim();
+                    if (!line) continue;
+                    
+                    if (line.startsWith('#')) {
+                        module.operations.push({
+                            type: 'comment',
+                            text: line.substring(1).trim(),
+                            repeat: false
+                        });
+                    } else {
+                        const parts = line.split(' ');
+                        if (parts.length > 0) {
+                            const operation = {
+                                type: parts[0],
+                                repeat: line.endsWith(' +'),
+                                params: parts.slice(1)
+                            };
+                            if (operation.repeat) {
+                                operation.params[operation.params.length - 1] = operation.params[operation.params.length - 1].replace(' +', '');
+                            }
+                            module.operations.push(operation);
+                        }
+                    }
+                }
+            }
         }
 
         function downloadFile() {
