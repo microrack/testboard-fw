@@ -7,36 +7,29 @@
         body {
             font-family: Arial, sans-serif;
             max-width: 1200px;
-            margin: 20px auto;
-            padding: 20px;
+            margin: 5px auto;
+            padding: 5px;
             background-color: #f5f5f5;
         }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .top-buttons {
+        .action-buttons {
             display: flex;
-            gap: 15px;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
+            gap: 3px;
+            margin-left: auto;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 3px;
+            margin-left: auto;
         }
         .btn {
-            padding: 12px 20px;
+            padding: 6px 10px;
             border: none;
-            border-radius: 5px;
+            border-radius: 3px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
             transition: background-color 0.3s;
-            min-width: 100px;
+            min-width: 80px;
         }
         .btn-primary { background-color: #007bff; color: white; }
         .btn-primary:hover { background-color: #0056b3; }
@@ -54,17 +47,17 @@
         }
         
         .module-section {
-            margin-bottom: 30px;
-            padding: 20px;
-            border: 2px solid #dee2e6;
-            border-radius: 8px;
+            margin-bottom: 5px;
+            padding: 5px;
+            border: 1px solid #dee2e6;
+            border-radius: 3px;
         }
         
         .module-header {
             display: flex;
             align-items: center;
-            gap: 15px;
-            margin-bottom: 20px;
+            gap: 10px;
+            margin-bottom: 5px;
         }
         
         .module-header h3 {
@@ -79,20 +72,20 @@
         }
         
         .module-selector input, .module-selector select {
-            padding: 8px 12px;
+            padding: 4px 6px;
             border: 1px solid #ced4da;
-            border-radius: 4px;
-            font-size: 14px;
+            border-radius: 3px;
+            font-size: 12px;
         }
         
         .edit-mode-tabs {
             display: flex;
-            gap: 5px;
+            gap: 2px;
         }
         
         .edit-mode-tabs .btn {
-            padding: 6px 12px;
-            font-size: 12px;
+            padding: 4px 8px;
+            font-size: 11px;
             min-width: auto;
         }
         
@@ -106,32 +99,67 @@
             color: white;
         }
         
+        .raw-container {
+            display: flex;
+            border: 1px solid #dee2e6;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .raw-line-numbers {
+            width: 125px;
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+        }
+        
+        .raw-line-number {
+            min-width: 50px;
+            font-weight: bold;
+            color: #6c757d;
+            text-align: right;
+            font-size: 11px;
+            padding: 2px;
+            padding-right: 10px;
+            border-bottom: 1px solid #dee2e6;
+            background-color: #f8f9fa;
+            min-height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        
+        .raw-line-number:nth-child(even) {
+            background-color: #ffffff;
+        }
+        
         .raw-textarea {
-            width: 100%;
-            min-height: 100px;
-            padding: 15px;
-            border: 1px solid #ced4da;
-            border-radius: 5px;
-            font-family: 'Courier New', monospace;
+            flex: 1;
+            min-height: 80px;
+            padding: 2px;
+            border: none;
+            border-radius: 0;
+            font-family: Arial, sans-serif;
             font-size: 12px;
-            line-height: 1.4;
+            line-height: 27px;
             resize: none;
             overflow: hidden;
+            background-color: #f8f9fa;
         }
         
         .operations-list {
             border: 1px solid #dee2e6;
-            border-radius: 5px;
+            border-radius: 3px;
             overflow: hidden;
         }
         
         .operation-line {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px;
+            gap: 5px;
+            padding: 2px;
             border-bottom: 1px solid #dee2e6;
             background-color: #f8f9fa;
+            min-height: 22px;
         }
         
         .operation-line:nth-child(even) {
@@ -143,45 +171,46 @@
         }
         
         .line-number {
-            min-width: 30px;
+            min-width: 25px;
             font-weight: bold;
             color: #6c757d;
             text-align: center;
+            font-size: 11px;
         }
         
         .operation-type {
-            min-width: 120px;
+            min-width: 100px;
         }
         
         .operation-type select {
             width: 100%;
-            padding: 6px 8px;
+            padding: 3px 5px;
             border: 1px solid #ced4da;
-            border-radius: 4px;
-            font-size: 12px;
+            border-radius: 3px;
+            font-size: 11px;
         }
         
         .operation-params {
             display: flex;
-            gap: 8px;
+            gap: 3px;
             flex: 1;
             align-items: center;
         }
         
         .param-input {
-            padding: 6px 8px;
+            padding: 3px 5px;
             border: 1px solid #ced4da;
-            border-radius: 4px;
-            font-size: 12px;
-            min-width: 80px;
+            border-radius: 3px;
+            font-size: 11px;
+            min-width: 60px;
         }
         
         .param-select {
-            padding: 6px 8px;
+            padding: 3px 5px;
             border: 1px solid #ced4da;
-            border-radius: 4px;
-            font-size: 12px;
-            min-width: 80px;
+            border-radius: 3px;
+            font-size: 11px;
+            min-width: 60px;
         }
         
         .repeat-checkbox {
@@ -191,26 +220,26 @@
         
         .line-actions {
             display: flex;
-            gap: 5px;
+            gap: 2px;
         }
         
         .btn-small {
-            padding: 4px 8px;
-            font-size: 12px;
+            padding: 2px 6px;
+            font-size: 10px;
             min-width: auto;
         }
         
         .add-operation {
-            padding: 15px;
+            padding: 4px;
             text-align: center;
             background-color: #e9ecef;
             border-top: 1px solid #dee2e6;
         }
         
         .status {
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 20px;
+            padding: 4px;
+            border-radius: 3px;
+            margin-top: 5px;
             display: none;
         }
         .status.success {
@@ -230,23 +259,12 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Testboard Configuration Editor</h1>
-        
-        <div class="top-buttons">
-            <button class="btn btn-primary" onclick="downloadFile()">Download File</button>
-            <button class="btn btn-warning" onclick="reloadFromDevice()">Reload</button>
-            <button class="btn btn-success" onclick="saveToDevice()">Save</button>
-            <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">Upload File</button>
-        </div>
-        
         <input type="file" id="fileInput" class="file-input" accept=".txt" onchange="uploadFile(this)">
         
         <div id="status" class="status"></div>
         
         <div class="module-section">
             <div class="module-header">
-                <h3>Select Module</h3>
                 <div class="module-selector">
                     <select id="moduleSelector" onchange="selectModule(this.value)">
                         <option value="">Select module</option>
@@ -256,13 +274,18 @@
                         <button id="rawTab" class="btn btn-secondary btn-small" onclick="switchEditMode('raw')">Raw</button>
                     </div>
                 </div>
+                <div class="action-buttons">
+                    <button class="btn btn-primary btn-small" onclick="downloadFile()">Download</button>
+                    <button class="btn btn-warning btn-small" onclick="reloadFromDevice()">Reload</button>
+                    <button class="btn btn-success btn-small" onclick="saveToDevice()">Save</button>
+                    <button class="btn btn-secondary btn-small" onclick="document.getElementById('fileInput').click()">Upload</button>
+                </div>
             </div>
         </div>
         
         <div id="operationsContainer" class="module-section" style="display: none;">
             <!-- Operations for selected module will be shown here -->
         </div>
-    </div>
 
     <script>
         let currentConfig = {
@@ -292,6 +315,16 @@
         // Load current configuration on page load
         window.onload = function() {
             loadCurrentConfig();
+            
+            // Add keyboard shortcut for mode switching
+            document.addEventListener('keydown', function(event) {
+                console.log(event);
+                if (event.altKey && event.key === 't') {
+                    event.preventDefault();
+                    const newMode = editMode === 'edit' ? 'raw' : 'edit';
+                    switchEditMode(newMode);
+                }
+            });
         };
 
         function loadCurrentConfig() {
@@ -399,9 +432,6 @@
             
             if (editMode === 'edit') {
                 container.innerHTML = `
-                    <div class="module-header">
-                        <h3>Operations for ${module.name} (ID: ${module.id})</h3>
-                    </div>
                     <div class="operations-list">
                         ${module.operations.map((op, opIndex) => renderOperationLine(moduleIndex, opIndex, op)).join('')}
                         <div class="add-operation">
@@ -412,11 +442,16 @@
             } else {
                 // Raw mode - show textarea with module operations as text
                 const moduleText = generateModuleText(module);
+                const lines = moduleText.split('\n');
+                const lineNumbers = lines.map((_, index) => index + 1).join('</div><div class="raw-line-number">');
+                
                 container.innerHTML = `
-                    <div class="module-header">
-                        <h3>Raw Text for ${module.name} (ID: ${module.id})</h3>
+                    <div class="raw-container">
+                        <div class="raw-line-numbers">
+                            <div class="raw-line-number">${lineNumbers}</div>
+                        </div>
+                        <textarea id="rawModuleText" class="raw-textarea" onchange="updateModuleFromRaw(${moduleIndex}, this.value)" oninput="autoResizeTextarea(this)">${moduleText}</textarea>
                     </div>
-                    <textarea id="rawModuleText" class="raw-textarea" onchange="updateModuleFromRaw(${moduleIndex}, this.value)" oninput="autoResizeTextarea(this)">${moduleText}</textarea>
                 `;
                 
                 // Auto-resize textarea after it's created
@@ -455,6 +490,10 @@
             
             return `
                 <div class="operation-line">
+                    <div class="line-actions">
+                        <button class="btn btn-danger btn-small" onclick="removeOperation(${moduleIndex}, ${opIndex})">Remove</button>
+                        <button class="btn btn-primary btn-small" onclick="insertOperation(${moduleIndex}, ${opIndex})">Insert</button>
+                    </div>
                     <div class="line-number">${lineNumber}</div>
                     <div class="operation-type">
                         <select onchange="updateOperationType(${moduleIndex}, ${opIndex}, this.value)">
@@ -467,10 +506,6 @@
                         ${paramsHtml}
                         ${operation.type !== 'comment' ? `<input type="checkbox" class="repeat-checkbox" ${operation.repeat ? 'checked' : ''} onchange="updateOperationRepeat(${moduleIndex}, ${opIndex}, this.checked)">` : ''}
                         ${operation.type !== 'comment' ? '<span>Repeat</span>' : ''}
-                    </div>
-                    <div class="line-actions">
-                        <button class="btn btn-danger btn-small" onclick="removeOperation(${moduleIndex}, ${opIndex})">Remove</button>
-                        <button class="btn btn-primary btn-small" onclick="insertOperation(${moduleIndex}, ${opIndex})">Insert</button>
                     </div>
                 </div>
             `;
@@ -556,7 +591,8 @@
                     text += '\n';
                 }
             });
-            return text;
+            // Remove trailing newline
+            return text.replace(/\n$/, '');
         }
         
         function generateConfigText() {
@@ -570,7 +606,18 @@
         
         function autoResizeTextarea(textarea) {
             textarea.style.height = 'auto';
-            textarea.style.height = textarea.scrollHeight + 'px';
+            const lineHeight = 27; // Exact line height in pixels
+            const lines = textarea.value.split('\n').length;
+            const minHeight = 80; // min-height from CSS
+            const calculatedHeight = Math.max(minHeight, lines * lineHeight + 4); // +4 for padding
+            textarea.style.height = calculatedHeight + 'px';
+            
+            // Update line numbers
+            const lineNumbersContainer = textarea.parentElement.querySelector('.raw-line-numbers');
+            if (lineNumbersContainer) {
+                const lineNumbers = Array.from({length: lines}, (_, index) => index + 1).join('</div><div class="raw-line-number">');
+                lineNumbersContainer.innerHTML = `<div class="raw-line-number">${lineNumbers}</div>`;
+            }
         }
         
         function updateModuleFromRaw(moduleIndex, rawText) {
