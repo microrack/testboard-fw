@@ -21,6 +21,9 @@ String htmlContent;
 // Task handle for web server
 TaskHandle_t webserverTaskHandle = NULL;
 
+// WiFi state tracking
+volatile bool wifi_enabled = false;
+
 // Forward declarations
 void handleRoot();
 void handleGetConfig();
@@ -32,7 +35,11 @@ void webserver_task(void* parameter) {
     ESP_LOGI(TAG, "Web server task started");
     
     while (true) {
-        server.handleClient();
+        // Check if WiFi is enabled
+        if (wifi_enabled) {
+            // WiFi is enabled, handle client requests
+            server.handleClient();
+        }
         vTaskDelay(pdMS_TO_TICKS(10)); // Small delay to prevent watchdog issues
     }
 }
@@ -49,23 +56,11 @@ bool init_webserver() {
     htmlContent = htmlFile.readString();
     htmlFile.close();
     
-    // Configure WiFi Access Point
-    WiFi.softAP(ssid, password);
-    IPAddress IP = WiFi.softAPIP();
-    ESP_LOGI(TAG, "WiFi AP started");
-    ESP_LOGI(TAG, "SSID: %s", ssid);
-    ESP_LOGI(TAG, "Password: %s", password);
-    ESP_LOGI(TAG, "IP address: %s", IP.toString().c_str());
-    
     // Configure web server routes
     server.on("/", HTTP_GET, handleRoot);
     server.on("/config", HTTP_GET, handleGetConfig);
     server.on("/config", HTTP_POST, handlePostConfig);
     server.onNotFound(handleNotFound);
-    
-    // Start server
-    server.begin();
-    ESP_LOGI(TAG, "Web server started");
     
     // Create web server task
     BaseType_t result = xTaskCreatePinnedToCore(
@@ -82,9 +77,40 @@ bool init_webserver() {
         ESP_LOGE(TAG, "Failed to create web server task");
         return false;
     }
-    
+
     ESP_LOGI(TAG, "Web server task created successfully");
+    
+    // Start WiFi initially
+    enable_wifi();
+
     return true;
+}
+
+void enable_wifi() {
+    ESP_LOGI(TAG, "Enabling WiFi");
+    WiFi.softAP(ssid, password);
+    IPAddress IP = WiFi.softAPIP();
+    ESP_LOGI(TAG, "WiFi AP started");
+    ESP_LOGI(TAG, "SSID: %s", ssid);
+    ESP_LOGI(TAG, "Password: %s", password);
+    ESP_LOGI(TAG, "IP address: %s", IP.toString().c_str());
+
+    // Start server
+    server.begin();
+    ESP_LOGI(TAG, "Web server started");
+    
+    // Signal that WiFi is enabled
+    wifi_enabled = true;
+}
+
+void disable_wifi() {
+    ESP_LOGI(TAG, "Disabling WiFi");
+    
+    // Signal that WiFi is disabled
+    wifi_enabled = false;
+    
+    WiFi.softAPdisconnect(true);
+    ESP_LOGI(TAG, "WiFi AP stopped");
 }
 
 void handleRoot() {

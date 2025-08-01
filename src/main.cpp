@@ -44,27 +44,33 @@ void setup() {
         for(;;); // Don't proceed, loop forever
     }
 
-    // Initialize web server
-    if (!init_webserver()) {
-        ESP_LOGE(TAG, "Failed to initialize web server");
-        for(;;); // Don't proceed, loop forever
-    }
-
     // Perform startup sequence
     if (!perform_startup_sequence()) {
         ESP_LOGE(TAG, "Startup sequence failed");
         for(;;); // Don't proceed, loop forever
     }
+
+    // Initialize web server
+    if (!init_webserver()) {
+        ESP_LOGE(TAG, "Failed to initialize web server");
+        for(;;); // Don't proceed, loop forever
+    }
 }
 
 void loop() {
+    enable_wifi();
+    
     // Step 6.1: Turn on fail LED and wait for module
     mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
     mcp1.digitalWrite(PIN_LED_OK, LOW);
     display_printf("Waiting for module...");
 
     bool p12v_ok, p5v_ok, m12v_ok;
+    
     wait_for_module_insertion(p12v_ok, p5v_ok, m12v_ok);
+
+    // Disable WiFi before testing
+    disable_wifi();
 
     // Get adapter ID and corresponding module info
     uint8_t adapter_id = hal_adapter_id();
@@ -78,6 +84,9 @@ void loop() {
         
         // Wait for module removal
         wait_for_module_removal(p12v_ok, p5v_ok, m12v_ok);
+        
+        // Re-enable WiFi after testing
+        enable_wifi();
         return;
     }
     
