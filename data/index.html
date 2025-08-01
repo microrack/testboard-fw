@@ -295,7 +295,7 @@
         };
 
         function loadCurrentConfig() {
-            fetch('/config')
+            fetch('./config')
                 .then(response => response.text())
                 .then(data => {
                     parseConfig(data);
