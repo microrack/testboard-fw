@@ -166,6 +166,46 @@
             background-color: #ffffff;
         }
         
+        .operation-line.comment-section {
+            background-color: #616c77 !important;
+            color: #ffffff;
+        }
+        
+        .operation-line.comment-section .line-number {
+            color: #ffffff;
+        }
+        
+        .operation-line.comment-section .param-input {
+            background-color: #495057;
+            border-color: #6c757d;
+            color: #ffffff;
+        }
+        
+        /* State colors */
+        .state-h {
+            background-color: #dc3545 !important;
+            color: #ffffff !important;
+            border-color: #c82333 !important;
+        }
+        
+        .state-l {
+            background-color: #28a745 !important;
+            color: #ffffff !important;
+            border-color: #1e7e34 !important;
+        }
+        
+        .state-z {
+            background-color: #17a2b8 !important;
+            color: #ffffff !important;
+            border-color: #117a8b !important;
+        }
+        
+        .state-p {
+            background-color: #ffc107 !important;
+            color: #212529 !important;
+            border-color: #e0a800 !important;
+        }
+        
         .operation-line:last-child {
             border-bottom: none;
         }
@@ -188,6 +228,42 @@
             border: 1px solid #ced4da;
             border-radius: 3px;
             font-size: 11px;
+        }
+        
+        /* Operation type colors */
+        .operation-type select[data-operation="comment"] {
+            background-color: #e9ecef;
+            border-color: #adb5bd;
+        }
+        
+        .operation-type select[data-operation="src"] {
+            background-color: #d1ecf1;
+            border-color: #17a2b8;
+        }
+        
+        .operation-type select[data-operation="io"] {
+            background-color: #d4edda;
+            border-color: #28a745;
+        }
+        
+        .operation-type select[data-operation="pd"] {
+            background-color: #fff3cd;
+            border-color: #ffc107;
+        }
+        
+        .operation-type select[data-operation="i"] {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+        }
+        
+        .operation-type select[data-operation="v"] {
+            background-color: #e2e3e5;
+            border-color: #6c757d;
+        }
+        
+        .operation-type select[data-operation="reset"] {
+            background-color: #e2d9f3;
+            border-color: #6f42c1;
         }
         
         .operation-params {
@@ -294,19 +370,33 @@
         let selectedModuleIndex = -1;
         let editMode = 'edit'; // 'edit' or 'raw'
         
-        // Operation types and their parameters
+        // Operation types
         const operationTypes = {
-            'comment': { name: 'Comment', params: ['text'] },
-            'src': { name: 'Source', params: ['pin', 'voltage_mv'] },
-            'io': { name: 'IO', params: ['pin', 'state'] },
-            'pd': { name: 'Pull-down', params: ['pin', 'state'] },
-            'i': { name: 'Check Current', params: ['rail', 'low_uA', 'high_uA'] },
-            'v': { name: 'Check Voltage', params: ['pin', 'low_mV', 'high_mV'] }
+            'src': { name: 'Source', params: ['src_pin', 'voltage'] },
+            'io': { name: 'IO', params: ['io_pin', 'state'] },
+            'pd': { name: 'Pulldown', params: ['pd_pin', 'pd_state'] },
+            'i': { name: 'Check Current', params: ['rail', 'low', 'high'] },
+            'v': { name: 'Check Voltage', params: ['pin', 'low', 'high'] },
+            'reset': { name: 'Reset', params: [] },
+            'comment': { name: 'Comment', params: [] }
         };
         
+        // Helper function to extract pin name from prefixed value
+        const getPinName = (prefixedValue) => {
+            if (prefixedValue.startsWith('out ')) {
+                return prefixedValue.substring(4);
+            } else if (prefixedValue.startsWith('in ')) {
+                return prefixedValue.substring(3);
+            }
+            return prefixedValue;
+        };
+
         // Parameter options
         const paramOptions = {
             'pin': ['A', 'B', 'C', 'D', 'E', 'F', 'pdA', 'pdB', 'pdC', 'zD', 'zE', 'zF'],
+            'src_pin': ['A', 'B', 'C', 'D'],
+            'io_pin': ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15'],
+            'pd_pin': ['pdA', 'pdB', 'pdC'],
             'state': ['h', 'l', 'z'],
             'pd_state': ['p', 'z'],
             'rail': ['+12', '+5', '-12']
@@ -468,8 +558,11 @@
         function renderOperationLine(moduleIndex, opIndex, operation) {
             const lineNumber = opIndex + 1;
             let paramsHtml = '';
+            let isSectionComment = false;
             
             if (operation.type === 'comment') {
+                isSectionComment = operation.text && operation.text.startsWith('#');
+                console.log(isSectionComment);
                 paramsHtml = `<input type="text" class="param-input" value="${operation.text || ''}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, 0, this.value)" placeholder="Comment text">`;
             } else {
                 const opType = operationTypes[operation.type];
@@ -477,9 +570,34 @@
                     paramsHtml = opType.params.map((param, paramIndex) => {
                         const value = operation.params[paramIndex] || '';
                         if (paramOptions[param]) {
-                            return `<select class="param-select" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, ${paramIndex}, this.value)">
+                            // Add state color classes for specific operations
+                            let stateClass = '';
+                            if ((operation.type === 'io' && param === 'state') || 
+                                (operation.type === 'pd' && param === 'pd_state')) {
+                                if (value && ['h', 'l', 'z', 'p'].includes(value)) {
+                                    stateClass = `state-${value}`;
+                                }
+                            }
+                            
+                            // Helper function to get display value for comparison
+                            const getDisplayValue = (option) => {
+                                if (param === 'src_pin') {
+                                    return `out ${option}`;
+                                } else if (param === 'io_pin') {
+                                    return `out ${option}`;
+                                } else if (param === 'pin') {
+                                    return `in ${option}`;
+                                }
+                                return option;
+                            };
+                            
+                            return `<select class="param-select ${stateClass}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, ${paramIndex}, this.value)">
                                 <option value="">Select ${param}</option>
-                                ${paramOptions[param].map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('')}
+                                ${paramOptions[param].map(opt => {
+                                    const displayValue = getDisplayValue(opt);
+                                    const isSelected = displayValue === value || opt === value;
+                                    return `<option value="${displayValue}" ${isSelected ? 'selected' : ''}>${displayValue}</option>`;
+                                }).join('')}
                             </select>`;
                         } else {
                             return `<input type="text" class="param-input" value="${value}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, ${paramIndex}, this.value)" placeholder="${param}">`;
@@ -487,16 +605,16 @@
                     }).join('');
                 }
             }
-            
+
             return `
-                <div class="operation-line">
+                <div class="operation-line${isSectionComment ? ' comment-section' : ''}">
                     <div class="line-actions">
                         <button class="btn btn-danger btn-small" onclick="removeOperation(${moduleIndex}, ${opIndex})">Remove</button>
                         <button class="btn btn-primary btn-small" onclick="insertOperation(${moduleIndex}, ${opIndex})">Insert</button>
                     </div>
                     <div class="line-number">${lineNumber}</div>
                     <div class="operation-type">
-                        <select onchange="updateOperationType(${moduleIndex}, ${opIndex}, this.value)">
+                        <select data-operation="${operation.type}" onchange="updateOperationType(${moduleIndex}, ${opIndex}, this.value)">
                             ${Object.keys(operationTypes).map(type => 
                                 `<option value="${type}" ${type === operation.type ? 'selected' : ''}>${operationTypes[type].name}</option>`
                             ).join('')}
@@ -553,6 +671,11 @@
                     operation.params = [];
                     operation.repeat = false;
                 }
+                
+                // Update the data-operation attribute for color
+                const selectElement = event.target;
+                selectElement.setAttribute('data-operation', type);
+                
                 showModuleOperations(moduleIndex);
             }
         }
@@ -566,6 +689,9 @@
                     if (!operation.params) operation.params = [];
                     operation.params[paramIndex] = value;
                 }
+                
+                // Re-render to update state colors
+                showModuleOperations(moduleIndex);
             }
         }
 
@@ -583,7 +709,19 @@
                 } else {
                     text += op.type;
                     if (op.params) {
-                        text += ' ' + op.params.join(' ');
+                        // Process params to remove prefixes for pin values
+                        const processedParams = op.params.map(param => {
+                            if (op.type === 'src' && op.params.indexOf(param) === 0) {
+                                return getPinName(param); // src_pin
+                            } else if (op.type === 'io' && op.params.indexOf(param) === 0) {
+                                return getPinName(param); // io_pin
+                            } else if (op.type === 'v' && op.params.indexOf(param) === 0) {
+                                return getPinName(param); // pin
+                            }
+                            return param;
+                        });
+                        
+                        text += ' ' + processedParams.join(' ');
                     }
                     if (op.repeat) {
                         text += ' +';

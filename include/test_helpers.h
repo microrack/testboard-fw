@@ -187,7 +187,7 @@ typedef struct {
     int32_t arg2;         // High value for checks (only used for CHECK_CURRENT and CHECK_PIN)
 } test_operation_t;
 
-bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges_t& ranges, int* output_mode);
+bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges_t& ranges, int* output_mode); 
 
 /**
  * @brief Execute a sequence of test operations

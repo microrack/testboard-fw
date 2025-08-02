@@ -1,48 +1,30 @@
-# Module configuration file
-# Format: module <name> <id>
-# Operations format:
-#   src <pin> <voltage_mv>     - Set voltage source
-#   io <pin> <state>           - Set IO pin (h=high, l=low, z=input)
-#   pd <pin> <state>           - Set pulldown (p=pulldown, z=high-z)
-#   i <rail> <low_uA> <high_uA> - Check current (rail: +12, +5, -12)
-#   v <pin> <low_mV> <high_mV> - Check voltage
-#   Add + at end of line for TEST_RUN_REPEAT (repeat until success)
-
 module mod_jacket 9
-# setup
-src A 0
-src B 0
-src C 0
-io 0 z
-io 1 z
-io 2 z
-# check current
+# # setup
+reset 
+# # check current
 i +12 0 1000
 i +5 2000 6000
 i -12 0 2000
-# check channel 1
+# # check channel 1
+reset 
 src A 2000
 v A 120 190
-src A 0
-#
+reset 
 io 0 h
-v A 4100 5100 +
-io 0 z
-# check channel 2
+v A 4100 5100 + +
+# # check channel 2
+reset 
 src B 2000
 v B 120 190
-src B 0
-#
+reset 
 io 1 h
-v B 4100 5100 +
-io 1 z
-# check channel 3
+v B 4100 5100 + +
+# # check channel 3
+reset 
 src C 2000
 v C 120 190
-src C 0
-#
+reset 
 io 2 h
 v C 4100 5100 +
-io 2 z 
 module empty_test 0
 # test
