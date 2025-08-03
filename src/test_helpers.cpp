@@ -359,9 +359,13 @@ bool execute_reset_operation() {
     
     // 3. Disable all pulldowns
     // Set pulldown pins to high-Z (input mode)
-    mcp1.pinMode(PIN_SINK_PD_A, INPUT);
-    mcp1.pinMode(PIN_SINK_PD_B, INPUT);
-    mcp1.pinMode(PIN_SINK_PD_C, INPUT);
+    mcp1.pinMode(PIN_SINK_PD_A, OUTPUT);
+    mcp1.pinMode(PIN_SINK_PD_B, OUTPUT);
+    mcp1.pinMode(PIN_SINK_PD_C, OUTPUT);
+
+    mcp1.pinMode(PIN_SINK_PD_A, LOW);
+    mcp1.pinMode(PIN_SINK_PD_B, LOW);
+    mcp1.pinMode(PIN_SINK_PD_C, LOW);
     
     ESP_LOGI(TAG, "Reset operation completed successfully");
     return true;

@@ -5,6 +5,7 @@
 #include <WebServer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include "modules.h"
 
 static const char* TAG = "webserver";
 
@@ -155,6 +156,9 @@ void handlePostConfig() {
         
         ESP_LOGI(TAG, "Configuration updated successfully");
         server.send(200, "text/plain", "Configuration updated successfully");
+        if (!init_modules_from_fs()) {
+            ESP_LOGE(TAG, "Failed to initialize modules from filesystem");
+        }
     } else {
         ESP_LOGE(TAG, "No configuration data received");
         server.send(400, "text/plain", "No configuration data received");
