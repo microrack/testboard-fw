@@ -581,11 +581,13 @@
                     if (parts.length > 0) {
                         const operation = {
                             type: parts[0],
-                            repeat: line.endsWith(' +'),
+                            repeat: /\+\s*$/.test(line),
                             params: parts.slice(1)
                         };
                         if (operation.repeat) {
-                            operation.params[operation.params.length - 1] = operation.params[operation.params.length - 1].replace(' +', '');
+                            console.log(operation.params);
+                            // Remove all trailing '+' characters from the last parameter
+                            operation.params[operation.params.length - 1] = operation.params[operation.params.length - 1].replace(/\+$/, '');
                         }
                         
                         // Convert original pin names back to display format with aliases
@@ -954,6 +956,7 @@
                 });
                 
                 text += generateModuleText(module);
+                text += "\n";
             });
             return text;
         }
@@ -1018,11 +1021,12 @@
                         if (parts.length > 0) {
                             const operation = {
                                 type: parts[0],
-                                repeat: line.endsWith(' +'),
+                                repeat: /\+\s*$/.test(line),
                                 params: parts.slice(1)
                             };
                             if (operation.repeat) {
-                                operation.params[operation.params.length - 1] = operation.params[operation.params.length - 1].replace(' +', '');
+                                // Remove all trailing '+' characters from the last parameter
+                                operation.params[operation.params.length - 1] = operation.params[operation.params.length - 1].replace(/\+$/, '');
                             }
                             module.operations.push(operation);
                         }

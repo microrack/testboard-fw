@@ -21,14 +21,14 @@ src A 2000
 v A 120 190
 reset 
 io 0 h
-v A 4100 5100 + +
+v A 4100 5100 +
 # # check channel 2
 reset 
 src B 2000
 v B 120 190
 reset 
 io 1 h
-v B 4100 5100 + +
+v B 4100 5100 +
 # # check channel 3
 reset 
 src C 2000
