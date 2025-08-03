@@ -175,7 +175,8 @@ typedef enum {
     TEST_OP_IO,          // Set IO pin state
     TEST_OP_SINK_PD,     // Set sink pulldown
     TEST_OP_CHECK_CURRENT, // Check current consumption
-    TEST_OP_CHECK_PIN    // Check pin voltage
+    TEST_OP_CHECK_PIN,   // Check pin voltage
+    TEST_OP_RESET        // Reset all pins to safe state
 } test_op_type_t;
 
 // Test operation structure
@@ -205,6 +206,18 @@ bool execute_test_sequence(const test_operation_t* operations, size_t count);
  * @return true if the operation succeeded, false otherwise
  */
 bool execute_single_operation(const test_operation_t& op);
+
+/**
+ * @brief Execute reset operation - set all pins to safe state
+ * 
+ * This function:
+ * 1. Sets all IO pins to HiZ (input mode)
+ * 2. Sets all voltage sources to 0V
+ * 3. Disables all pulldowns
+ * 
+ * @return true if reset was successful, false otherwise
+ */
+bool execute_reset_operation();
 
 // Helper function to map current measurement pin numbers from JSON to actual pins
 int map_current_pin(int pin); 

@@ -333,8 +333,36 @@ bool execute_single_operation(const test_operation_t& op) {
             return test_pin_range((ADC_sink_t)op.pin, range, pin_name);
         }
         
+        case TEST_OP_RESET: {
+            return execute_reset_operation();
+        }
+        
         default:
             ESP_LOGE(TAG, "Unknown test operation type: %d", op.op);
             return false;
     }
+}
+
+bool execute_reset_operation() {
+    ESP_LOGI(TAG, "Executing reset operation - setting all pins to safe state");
+    
+    // 1. Set all IO pins to HiZ (input mode)
+    for (int pin = 0; pin <= 15; pin++) {
+        hal_set_io((mcp_io_t)pin, IO_INPUT);
+    }
+    
+    // 2. Set all voltage sources to 0V
+    hal_set_source(SOURCE_A, 0);
+    hal_set_source(SOURCE_B, 0);
+    hal_set_source(SOURCE_C, 0);
+    hal_set_source(SOURCE_D, 0);
+    
+    // 3. Disable all pulldowns
+    // Set pulldown pins to high-Z (input mode)
+    mcp1.pinMode(PIN_SINK_PD_A, INPUT);
+    mcp1.pinMode(PIN_SINK_PD_B, INPUT);
+    mcp1.pinMode(PIN_SINK_PD_C, INPUT);
+    
+    ESP_LOGI(TAG, "Reset operation completed successfully");
+    return true;
 } 

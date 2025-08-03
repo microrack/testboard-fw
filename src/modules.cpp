@@ -8,7 +8,7 @@
 
 static const char* TAG = "modules";
 
-// Global module storage
+// Global variables for module storage
 static module_info_t* modules = nullptr;
 static size_t modules_count = 0;
 static test_operation_t* operations_buffer = nullptr;
@@ -231,6 +231,13 @@ bool init_modules_from_fs() {
                 
                 line_str = get_token(line_str, token, sizeof(token));
                 op.arg2 = atoi(token);
+                
+            } else if (strcmp(token, "reset") == 0) {
+                op.op = TEST_OP_RESET;
+                op.repeat = repeat_flag;
+                op.pin = 0;  // Not used for reset
+                op.arg1 = 0; // Not used for reset
+                op.arg2 = 0; // Not used for reset
                 
             } else {
                 ESP_LOGW(TAG, "Unknown operation: %s", token);

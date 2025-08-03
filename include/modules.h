@@ -1,14 +1,17 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 #include "test_helpers.h"
 
-// Module information structure
+/**
+ * @brief Module information structure
+ */
 typedef struct {
-    uint8_t id;
-    const char* name;
-    const test_operation_t* test_operations;
-    size_t test_operations_count;
+    uint8_t id;                          // Module ID
+    char* name;                          // Module name
+    const test_operation_t* test_operations;  // Array of test operations
+    size_t test_operations_count;        // Number of test operations
 } module_info_t;
 
 // Initialize modules from filesystem
