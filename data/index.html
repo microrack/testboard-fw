@@ -99,6 +99,62 @@
             color: white;
         }
         
+        .aliases-section {
+            margin-bottom: 10px;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 3px;
+        }
+        
+        .aliases-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .aliases-list {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        
+        .alias-line {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px;
+            background-color: white;
+            border: 1px solid #dee2e6;
+            border-radius: 2px;
+        }
+        
+        .alias-line-number {
+            min-width: 25px;
+            font-size: 11px;
+            color: #6c757d;
+            text-align: center;
+        }
+        
+        .alias-name-input {
+            width: 120px;
+            padding: 2px 4px;
+            border: 1px solid #ced4da;
+            border-radius: 2px;
+            font-size: 11px;
+        }
+        
+        .alias-pin-selector {
+            width: 100px;
+            padding: 2px 4px;
+            border: 1px solid #ced4da;
+            border-radius: 2px;
+            font-size: 11px;
+        }
+        
         .raw-container {
             display: flex;
             border: 1px solid #dee2e6;
@@ -359,6 +415,16 @@
             </div>
         </div>
         
+        <div id="aliasesContainer" class="module-section" style="display: none;">
+            <div class="aliases-header">
+                <span>Pin Aliases</span>
+                <button class="btn btn-success btn-small" onclick="addAlias()">Add Alias</button>
+            </div>
+            <div id="aliasesList" class="aliases-list">
+                <!-- Aliases for selected module will be shown here -->
+            </div>
+        </div>
+        
         <div id="operationsContainer" class="module-section" style="display: none;">
             <!-- Operations for selected module will be shown here -->
         </div>
@@ -369,6 +435,15 @@
         };
         let selectedModuleIndex = -1;
         let editMode = 'edit'; // 'edit' or 'raw'
+        
+        // Pin options for aliases
+        const pinOptions = [
+            'out A', 'out B', 'out C', 'out D',
+            'in A', 'in B', 'in C', 'in D', 'in E', 'in F',
+            'in pdA', 'in pdB', 'in pdC',
+            'in zD', 'in zE', 'in zF',
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15'
+        ];
         
         // Operation types
         const operationTypes = {
@@ -381,14 +456,49 @@
             'comment': { name: 'Comment', params: [] }
         };
         
-        // Helper function to extract pin name from prefixed value
-        const getPinName = (prefixedValue) => {
-            if (prefixedValue.startsWith('out ')) {
-                return prefixedValue.substring(4);
-            } else if (prefixedValue.startsWith('in ')) {
-                return prefixedValue.substring(3);
+        // Helper function to replace original pin names with aliases for display
+        const replaceWithAlias = (originalName, module) => {
+            if (!module || !module.aliases) return originalName;
+            
+            // First try to find exact match
+            let alias = module.aliases.find(a => a.pin === originalName);
+            
+            return alias ? alias.name : originalName;
+        };
+
+        // Helper function to get options with aliases
+        const getOptionsWithAliases = (paramType, module) => {
+            const baseOptions = paramOptions[paramType] || [];
+            const optionsWithAliases = [];
+            
+            // Process each base option
+            baseOptions.forEach(opt => {
+                let displayValue = opt;
+                if (paramType === 'src_pin') {
+                    displayValue = `out ${opt}`;
+                } else if (paramType === 'pin') {
+                    displayValue = `in ${opt}`;
+                }
+
+                // Replace with alias if available
+                displayValue = replaceWithAlias(displayValue, module);
+
+                optionsWithAliases.push(displayValue);
+            });
+            
+            return optionsWithAliases;
+        };
+
+        // Helper function to get display value
+        const getDisplayValue = (value, paramType) => {
+            if (paramType === 'src_pin') {
+                return `out ${value}`;
+            } else if (paramType === 'io_pin') {
+                return `out ${value}`;
+            } else if (paramType === 'pin') {
+                return `in ${value}`;
             }
-            return prefixedValue;
+            return value;
         };
 
         // Parameter options
@@ -408,7 +518,6 @@
             
             // Add keyboard shortcut for mode switching
             document.addEventListener('keydown', function(event) {
-                console.log(event);
                 if (event.altKey && event.key === 't') {
                     event.preventDefault();
                     const newMode = editMode === 'edit' ? 'raw' : 'edit';
@@ -445,9 +554,21 @@
                         currentModule = {
                             name: parts[1],
                             id: parts[2],
+                            aliases: [],
                             operations: []
                         };
                         currentConfig.modules.push(currentModule);
+                    }
+                } else if (line.startsWith('# alias ') && currentModule) {
+                    // Parse alias: "# alias <alias_name>=<pin_name>"
+                    const aliasMatch = line.match(/^# alias\s+([^=]+)=(.*)$/);
+                    if (aliasMatch) {
+                        const aliasName = aliasMatch[1].trim();
+                        const pinName = aliasMatch[2].trim();
+                        currentModule.aliases.push({
+                            name: aliasName,
+                            pin: pinName
+                        });
                     }
                 } else if (line.startsWith('#') && currentModule) {
                     currentModule.operations.push({
@@ -466,6 +587,15 @@
                         if (operation.repeat) {
                             operation.params[operation.params.length - 1] = operation.params[operation.params.length - 1].replace(' +', '');
                         }
+                        
+                        // Convert original pin names back to display format with aliases
+                        if (operation.params && operation.params.length > 0) {
+                            operation.params = operation.params.map((param, paramIndex) => {
+                                // Store original pin names without prefixes
+                                return param;
+                            });
+                        }
+                        
                         currentModule.operations.push(operation);
                     }
                 }
@@ -499,6 +629,7 @@
             if (selectedModuleIndex >= 0 && selectedModuleIndex < currentConfig.modules.length) {
                 showModuleOperations(selectedModuleIndex);
             } else {
+                document.getElementById('aliasesContainer').style.display = 'none';
                 document.getElementById('operationsContainer').style.display = 'none';
             }
         }
@@ -517,11 +648,24 @@
         }
         
         function showModuleOperations(moduleIndex) {
-            const container = document.getElementById('operationsContainer');
+            const aliasesContainer = document.getElementById('aliasesContainer');
+            const operationsContainer = document.getElementById('operationsContainer');
             const module = currentConfig.modules[moduleIndex];
             
+            // Show aliases
+            aliasesContainer.style.display = 'block';
+            aliasesContainer.innerHTML = `
+                <div class="aliases-header">
+                    <span>Pin Aliases</span>
+                    <button class="btn btn-success btn-small" onclick="addAlias()">Add Alias</button>
+                </div>
+                <div id="aliasesList" class="aliases-list">
+                    ${module.aliases.map((alias, aliasIndex) => renderAliasLine(moduleIndex, aliasIndex, alias)).join('')}
+                </div>
+            `;
+            
             if (editMode === 'edit') {
-                container.innerHTML = `
+                operationsContainer.innerHTML = `
                     <div class="operations-list">
                         ${module.operations.map((op, opIndex) => renderOperationLine(moduleIndex, opIndex, op)).join('')}
                         <div class="add-operation">
@@ -535,7 +679,7 @@
                 const lines = moduleText.split('\n');
                 const lineNumbers = lines.map((_, index) => index + 1).join('</div><div class="raw-line-number">');
                 
-                container.innerHTML = `
+                operationsContainer.innerHTML = `
                     <div class="raw-container">
                         <div class="raw-line-numbers">
                             <div class="raw-line-number">${lineNumbers}</div>
@@ -552,7 +696,72 @@
                     }
                 }, 10);
             }
-            container.style.display = 'block';
+            operationsContainer.style.display = 'block';
+        }
+
+        function renderAliasLine(moduleIndex, aliasIndex, alias) {
+            const lineNumber = aliasIndex + 1;
+            return `
+                <div class="alias-line">
+                    <div class="line-actions">
+                        <button class="btn btn-danger btn-small" onclick="removeAlias(${moduleIndex}, ${aliasIndex})">Remove</button>
+                        <button class="btn btn-primary btn-small" onclick="editAlias(${moduleIndex}, ${aliasIndex})">Edit</button>
+                    </div>
+                    <div class="alias-line-number">${lineNumber}</div>
+                    <div class="alias-name-input">
+                        <input type="text" value="${alias.name}" onchange="updateAliasName(${moduleIndex}, ${aliasIndex}, this.value)" placeholder="Alias name">
+                    </div>
+                    <div class="alias-pin-selector">
+                        <select onchange="updateAliasPin(${moduleIndex}, ${aliasIndex}, this.value)">
+                            <option value="">Select pin</option>
+                            ${pinOptions.map(pin => {
+                                const isSelected = alias.pin === pin;
+                                return `<option value="${pin}" ${isSelected ? 'selected' : ''}>${pin}</option>`;
+                            }).join('')}
+                        </select>
+                    </div>
+                </div>
+            `;
+        }
+
+        function addAlias() {
+            if (selectedModuleIndex >= 0 && selectedModuleIndex < currentConfig.modules.length) {
+                currentConfig.modules[selectedModuleIndex].aliases.push({
+                    name: '',
+                    pin: ''
+                });
+                showModuleOperations(selectedModuleIndex);
+            }
+        }
+
+        function removeAlias(moduleIndex, aliasIndex) {
+            if (moduleIndex >= 0 && moduleIndex < currentConfig.modules.length) {
+                currentConfig.modules[moduleIndex].aliases.splice(aliasIndex, 1);
+                showModuleOperations(moduleIndex);
+            }
+        }
+
+        function editAlias(moduleIndex, aliasIndex) {
+            if (moduleIndex >= 0 && moduleIndex < currentConfig.modules.length) {
+                const alias = currentConfig.modules[moduleIndex].aliases[aliasIndex];
+                const newName = prompt('Enter new alias name:', alias.name);
+                if (newName !== null) {
+                    alias.name = newName;
+                    showModuleOperations(moduleIndex);
+                }
+            }
+        }
+
+        function updateAliasName(moduleIndex, aliasIndex, name) {
+            if (moduleIndex >= 0 && moduleIndex < currentConfig.modules.length) {
+                currentConfig.modules[moduleIndex].aliases[aliasIndex].name = name;
+            }
+        }
+
+        function updateAliasPin(moduleIndex, aliasIndex, pin) {
+            if (moduleIndex >= 0 && moduleIndex < currentConfig.modules.length) {
+                currentConfig.modules[moduleIndex].aliases[aliasIndex].pin = pin;
+            }
         }
 
         function renderOperationLine(moduleIndex, opIndex, operation) {
@@ -562,13 +771,12 @@
             
             if (operation.type === 'comment') {
                 isSectionComment = operation.text && operation.text.startsWith('#');
-                console.log(isSectionComment);
                 paramsHtml = `<input type="text" class="param-input" value="${operation.text || ''}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, 0, this.value)" placeholder="Comment text">`;
             } else {
                 const opType = operationTypes[operation.type];
                 if (opType) {
                     paramsHtml = opType.params.map((param, paramIndex) => {
-                        const value = operation.params[paramIndex] || '';
+                        let value = operation.params[paramIndex] || '';
                         if (paramOptions[param]) {
                             // Add state color classes for specific operations
                             let stateClass = '';
@@ -579,24 +787,24 @@
                                 }
                             }
                             
-                            // Helper function to get display value for comparison
-                            const getDisplayValue = (option) => {
-                                if (param === 'src_pin') {
-                                    return `out ${option}`;
-                                } else if (param === 'io_pin') {
-                                    return `out ${option}`;
-                                } else if (param === 'pin') {
-                                    return `in ${option}`;
-                                }
-                                return option;
-                            };
+                            // Get options with aliases
+                            const module = currentConfig.modules[moduleIndex];
+                            const optionsWithAliases = getOptionsWithAliases(param, module);
+
+                            // Add prefix for display
+                            if (operation.type === 'src') {
+                                value = `out ${value}`;
+                            } else if (operation.type === 'v') {
+                                value = `in ${value}`;
+                            }
+
+                            let displayValue = replaceWithAlias(value, module);
                             
                             return `<select class="param-select ${stateClass}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, ${paramIndex}, this.value)">
                                 <option value="">Select ${param}</option>
-                                ${paramOptions[param].map(opt => {
-                                    const displayValue = getDisplayValue(opt);
-                                    const isSelected = displayValue === value || opt === value;
-                                    return `<option value="${displayValue}" ${isSelected ? 'selected' : ''}>${displayValue}</option>`;
+                                ${optionsWithAliases.map(opt => {
+                                    const isSelected = opt === displayValue;
+                                    return `<option value="${opt}" ${isSelected ? 'selected' : ''}>${opt}</option>`;
                                 }).join('')}
                             </select>`;
                         } else {
@@ -687,7 +895,14 @@
                     operation.text = value;
                 } else {
                     if (!operation.params) operation.params = [];
-                    operation.params[paramIndex] = value;
+                    
+                    // Remove prefixes for pin values when saving
+                    let processedValue = value;
+                    if (value && (value.startsWith('out ') || value.startsWith('in '))) {
+                        processedValue = value.startsWith('out ') ? value.substring(4) : value.substring(3);
+                    }
+                    
+                    operation.params[paramIndex] = processedValue;
                 }
                 
                 // Re-render to update state colors
@@ -709,15 +924,8 @@
                 } else {
                     text += op.type;
                     if (op.params) {
-                        // Process params to remove prefixes for pin values
+                        // Process params - just use original pin names
                         const processedParams = op.params.map(param => {
-                            if (op.type === 'src' && op.params.indexOf(param) === 0) {
-                                return getPinName(param); // src_pin
-                            } else if (op.type === 'io' && op.params.indexOf(param) === 0) {
-                                return getPinName(param); // io_pin
-                            } else if (op.type === 'v' && op.params.indexOf(param) === 0) {
-                                return getPinName(param); // pin
-                            }
                             return param;
                         });
                         
@@ -737,6 +945,14 @@
             let text = '';
             currentConfig.modules.forEach(module => {
                 text += `module ${module.name} ${module.id}\n`;
+                
+                // Add aliases
+                module.aliases.forEach(alias => {
+                    if (alias.name && alias.pin) {
+                        text += `# alias ${alias.name}=${alias.pin}\n`;
+                    }
+                });
+                
                 text += generateModuleText(module);
             });
             return text;
@@ -761,6 +977,7 @@
         function updateModuleFromRaw(moduleIndex, rawText) {
             if (moduleIndex >= 0 && moduleIndex < currentConfig.modules.length) {
                 const module = currentConfig.modules[moduleIndex];
+                module.aliases = [];
                 module.operations = [];
                 
                 const lines = rawText.split('\n');
@@ -768,7 +985,29 @@
                     line = line.trim();
                     if (!line) continue;
                     
-                    if (line.startsWith('#')) {
+                    if (line.startsWith('alias ')) {
+                        // Parse alias: "alias <alias_name>=<pin_name>"
+                        const aliasMatch = line.match(/^alias\s+([^=]+)=(.*)$/);
+                        if (aliasMatch) {
+                            const aliasName = aliasMatch[1].trim();
+                            const pinName = aliasMatch[2].trim();
+                            module.aliases.push({
+                                name: aliasName,
+                                pin: pinName
+                            });
+                        }
+                    } else if (line.startsWith('# alias ')) {
+                        // Parse alias: "# alias <alias_name>=<pin_name>"
+                        const aliasMatch = line.match(/^# alias\s+([^=]+)=(.*)$/);
+                        if (aliasMatch) {
+                            const aliasName = aliasMatch[1].trim();
+                            const pinName = aliasMatch[2].trim();
+                            module.aliases.push({
+                                name: aliasName,
+                                pin: pinName
+                            });
+                        }
+                    } else if (line.startsWith('#')) {
                         module.operations.push({
                             type: 'comment',
                             text: line.substring(1).trim(),

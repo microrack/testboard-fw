@@ -1,4 +1,14 @@
 module mod_jacket 9
+# Pin aliases
+# alias ch1_A=out A
+# alias ch1_B=0
+# alias ch2_A=out B
+# alias ch2_B=1
+# alias ch3_A=out C
+# alias ch3_B=2
+# alias ch1_out=in A
+# alias ch2_out=in B
+# alias ch3_out=in C
 # # setup
 reset 
 # # check current
