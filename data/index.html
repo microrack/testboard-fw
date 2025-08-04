@@ -114,6 +114,27 @@
             margin-bottom: 8px;
             font-weight: bold;
             color: #495057;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .aliases-toggle {
+            font-size: 14px;
+            transition: transform 0.3s;
+        }
+        
+        .aliases-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+        
+        .aliases-content {
+            transition: max-height 0.3s ease-out;
+            overflow: hidden;
+            max-height: 0;
+        }
+        
+        .aliases-content.expanded {
+            max-height: 500px;
         }
         
         .aliases-list {
@@ -430,12 +451,15 @@
         </div>
         
         <div id="aliasesContainer" class="module-section" style="display: none;">
-            <div class="aliases-header">
+            <div class="aliases-header" onclick="toggleAliases()">
+                <span class="aliases-toggle" id="aliasesToggle">▶</span>
                 <span>Pin Aliases</span>
-                <button class="btn btn-success btn-small" onclick="addAlias()">Add Alias</button>
+                <button class="btn btn-success btn-small" onclick="addAlias(); event.stopPropagation();">Add Alias</button>
             </div>
-            <div id="aliasesList" class="aliases-list">
-                <!-- Aliases for selected module will be shown here -->
+            <div id="aliasesContent" class="aliases-content">
+                <div id="aliasesList" class="aliases-list">
+                    <!-- Aliases for selected module will be shown here -->
+                </div>
             </div>
         </div>
         
@@ -725,12 +749,15 @@
             // Show aliases
             aliasesContainer.style.display = 'block';
             aliasesContainer.innerHTML = `
-                <div class="aliases-header">
+                <div class="aliases-header" onclick="toggleAliases()">
+                    <span class="aliases-toggle" id="aliasesToggle">▶</span>
                     <span>Pin Aliases</span>
-                    <button class="btn btn-success btn-small" onclick="addAlias()">Add Alias</button>
+                    <button class="btn btn-success btn-small" onclick="addAlias(); event.stopPropagation();">Add Alias</button>
                 </div>
-                <div id="aliasesList" class="aliases-list">
-                    ${module.aliases.map((alias, aliasIndex) => renderAliasLine(moduleIndex, aliasIndex, alias)).join('')}
+                <div id="aliasesContent" class="aliases-content">
+                    <div id="aliasesList" class="aliases-list">
+                        ${module.aliases.map((alias, aliasIndex) => renderAliasLine(moduleIndex, aliasIndex, alias)).join('')}
+                    </div>
                 </div>
             `;
             
@@ -1193,6 +1220,21 @@
             const resultClass = result.passed ? 'passed' : 'failed';
             
             return `<span class="test-result ${resultClass}">${result.result}</span>`;
+        }
+
+        function toggleAliases() {
+            const toggle = document.getElementById('aliasesToggle');
+            const content = document.getElementById('aliasesContent');
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                toggle.classList.add('collapsed');
+                toggle.textContent = '▶';
+            } else {
+                content.classList.add('expanded');
+                toggle.classList.remove('collapsed');
+                toggle.textContent = '▼';
+            }
         }
 
         function showStatus(message, type) {
