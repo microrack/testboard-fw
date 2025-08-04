@@ -48,6 +48,12 @@ static ADC_sink_t string_to_voltage_pin(const char* str) {
     if (strcmp(str, "D") == 0) return ADC_sink_1k_D;
     if (strcmp(str, "E") == 0) return ADC_sink_1k_E;
     if (strcmp(str, "F") == 0) return ADC_sink_1k_F;
+    if (strcmp(str, "pdA") == 0) return ADC_sink_PD_A;
+    if (strcmp(str, "pdB") == 0) return ADC_sink_PD_B;
+    if (strcmp(str, "pdC") == 0) return ADC_sink_PD_C;
+    if (strcmp(str, "zD") == 0) return ADC_sink_Z_D;
+    if (strcmp(str, "zE") == 0) return ADC_sink_Z_E;
+    if (strcmp(str, "zF") == 0) return ADC_sink_Z_F;
     return ADC_sink_1k_A; // Default
 }
 
@@ -294,32 +300,16 @@ bool execute_module_tests(module_info_t* module) {
     
     // If module has test operations, use declarative approach
     if (module->test_operations && module->test_operations_count > 0) {
-        // Find module index to get corresponding test results array
-        extern module_info_t* get_modules_array();
-        extern size_t get_modules_count();
-        
-        module_info_t* modules = get_modules_array();
-        size_t modules_count = get_modules_count();
-        size_t module_index = 0;
-        
-        // Find the module index
-        for (size_t i = 0; i < modules_count; i++) {
-            if (&modules[i] == module) {
-                module_index = i;
-                break;
-            }
-        }
-        
         // Get test results array from global storage
-        extern test_operation_result_t** get_global_test_results();
-        test_operation_result_t** global_results = get_global_test_results();
+        extern test_operation_result_t* get_global_test_results();
+        test_operation_result_t* global_results = get_global_test_results();
         
-        if (!global_results || !global_results[module_index]) {
+        if (!global_results) {
             ESP_LOGE(TAG, "Test results array not available for module: %s", module->name);
             return false;
         }
         
-        bool success = execute_test_sequence(module->test_operations, module->test_operations_count, global_results[module_index]);
+        bool success = execute_test_sequence(module->test_operations, module->test_operations_count, global_results);
         
         return success;
     }

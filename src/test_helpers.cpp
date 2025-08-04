@@ -3,6 +3,8 @@
 #include "hal.h"
 #include "display.h"
 #include "test_results.h"
+#include <LittleFS.h>
+#include <esp_log.h>
 
 static const char* TAG = "test_helpers";
 
@@ -28,50 +30,34 @@ power_rails_state_t get_power_rails_state(bool* p12v_state, bool* p5v_state, boo
 }
 
 bool perform_startup_sequence() {
-    // Step 1: Switch off both LEDs
-    mcp1.digitalWrite(PIN_LED_OK, LOW);
-    mcp1.digitalWrite(PIN_LED_FAIL, LOW);
-
-    // Step 2: Wait for adapter
-    uint8_t adapter_id = hal_adapter_id();
-    if (adapter_id == 0b11111) {
-        display_printf("Waiting for adapter...");
-
-        while (hal_adapter_id() == 0b11111) {
-            delay(100);
-        }
-        adapter_id = hal_adapter_id();
-    }
-
-    // Adapter detected
-    display_printf("Adapter detected: 0x%02X", adapter_id);
-
-    // Step 4: Wait for module removal for calibration
-    bool p12v_ok, p5v_ok, m12v_ok;
-    power_rails_state_t rails_state = get_power_rails_state(&p12v_ok, &p5v_ok, &m12v_ok);
-
-    if (rails_state != POWER_RAILS_NONE) {
-        display_printf("Remove module for calibration");
-
-        do {
-            rails_state = get_power_rails_state(&p12v_ok, &p5v_ok, &m12v_ok);
-            delay(100);
-        } while (rails_state != POWER_RAILS_NONE);
-    }
-
-    // Step 5: Perform calibration
-    display_printf("Calibrating...");
+    ESP_LOGI(TAG, "Starting startup sequence");
     
+    // Step 1: Initialize HAL
+    hal_init();
+    
+    // Step 2: Initialize display
+    if (!display_init()) {
+        ESP_LOGE(TAG, "Failed to initialize display");
+        return false;
+    }
+    
+    // Step 3: Initialize modules
+    if (!init_modules_from_fs()) {
+        ESP_LOGE(TAG, "Failed to initialize modules from filesystem");
+        return false;
+    }
+    
+    // Step 4: Initialize filesystem
+    if (!LittleFS.begin(true)) {
+        ESP_LOGE(TAG, "Failed to initialize filesystem");
+        return false;
+    }
+    
+    // Step 5: Calibrate sensors
     hal_current_calibrate();
     hal_adc_calibrate();
     
     ESP_LOGI(TAG, "Calibration complete");
-    
-    // Step 6: Allocate test results arrays
-    if (!allocate_test_results_arrays()) {
-        ESP_LOGE(TAG, "Failed to allocate test results arrays");
-        return false;
-    }
     
     return true;
 }
@@ -263,12 +249,6 @@ bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges
 bool execute_test_sequence(const test_operation_t* operations, size_t count, test_operation_result_t* results) {
     ESP_LOGI(TAG, "Executing test sequence with %zu operations", count);
     
-    // Reset all test results
-    for (size_t i = 0; i < count; i++) {
-        results[i].passed = false;
-        results[i].result = 0;
-    }
-    
     bool all_tests_passed = true;
     
     for (size_t i = 0; i < count; i++) {
@@ -297,10 +277,15 @@ bool execute_test_sequence(const test_operation_t* operations, size_t count, tes
         } else {
             result = execute_single_operation(op, &actual_result);
         }
+
+        ESP_LOGI(TAG, "Op result: %s", result ? "PASS" : "FAIL");
         
         // Store test result if still not passed
         if(!results[i].passed) {
+            ESP_LOGI(TAG, "Write result %d", actual_result);
             results[i].result = actual_result;
+        } else {
+            ESP_LOGI(TAG, "Skip result write, already passed");
         }
 
         results[i].passed = result;
@@ -366,7 +351,13 @@ bool execute_single_operation(const test_operation_t& op, int32_t* result) {
                                   (op.pin == ADC_sink_1k_C) ? "C" :
                                   (op.pin == ADC_sink_1k_D) ? "D" :
                                   (op.pin == ADC_sink_1k_E) ? "E" :
-                                  (op.pin == ADC_sink_1k_F) ? "F" : "Unknown";
+                                  (op.pin == ADC_sink_1k_F) ? "F" :
+                                  (op.pin == ADC_sink_PD_A) ? "pdA" :
+                                  (op.pin == ADC_sink_PD_B) ? "pdB" :
+                                  (op.pin == ADC_sink_PD_C) ? "pdC" :
+                                  (op.pin == ADC_sink_Z_D) ? "zD" :
+                                  (op.pin == ADC_sink_Z_E) ? "zE" :
+                                  (op.pin == ADC_sink_Z_F) ? "zF" : "Unknown";
             if (result) {
                 // Get actual voltage value for failed test
                 *result = hal_adc_read((ADC_sink_t)op.pin); // Returns value in millivolts

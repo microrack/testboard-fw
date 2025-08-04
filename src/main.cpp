@@ -27,6 +27,9 @@ static bool pd_state_a = false;
 static bool pd_state_b = false;
 static bool pd_state_c = false;
 
+// Global module info
+static module_info_t* module = nullptr;
+
 void setup() {
     // Initialize hardware abstraction layer
     hal_init();
@@ -50,6 +53,19 @@ void setup() {
         ESP_LOGE(TAG, "Startup sequence failed");
         for(;;); // Don't proceed, loop forever
     }
+
+    // Get adapter ID and corresponding module info
+    uint8_t adapter_id = hal_adapter_id();
+    module = get_module_info(adapter_id);
+
+    if (!module) {
+        ESP_LOGE(TAG, "Unknown module detected");
+        mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+        mcp1.digitalWrite(PIN_LED_OK, LOW);
+        for(;;);
+    }
+
+    allocate_test_results_arrays(module);
 
     // Initialize web server
     if (!init_webserver()) {
@@ -85,24 +101,8 @@ void loop() {
 
     // Disable WiFi before testing
     disable_wifi();
-
-    // Get adapter ID and corresponding module info
-    uint8_t adapter_id = hal_adapter_id();
-    module_info_t* module = get_module_info(adapter_id);
     
-    if (!module) {
-        ESP_LOGE(TAG, "Unknown module detected (ID: %d)", adapter_id);
-        display_printf("Unknown module type\nID: %d", adapter_id);
-        mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-        mcp1.digitalWrite(PIN_LED_OK, LOW);
-        
-        // Wait for module removal
-        wait_for_module_removal(p12v_ok, p5v_ok, m12v_ok);
-        
-        return;
-    }
-    
-    ESP_LOGI(TAG, "Module detected: %s (ID: %d)", module->name, adapter_id);
+    ESP_LOGI(TAG, "Module detected: %s", module->name);
     display_printf("Module: %s", module->name);
 
     mcp1.digitalWrite(PIN_LED_FAIL, LOW);
