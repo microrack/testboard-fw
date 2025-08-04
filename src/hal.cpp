@@ -57,7 +57,7 @@ void IRAM_ATTR signal_generator_callback() {
     for (int i = 0; i < SOURCE_COUNT; i++) {
         if (signal_frequencies[i] > 0) {
             // Get DAC value from sine table
-            uint16_t dac_value = sine_table[signal_phase[i] & 0xFF];
+            uint16_t dac_value = sine_table[(signal_phase[i] / 128) & 0xFF];
             
             // Set DAC value directly
             hal_set_source_direct((source_net_t)i, dac_value);
@@ -126,6 +126,7 @@ void hal_init() {
     signal_timer = timerBegin(2000000); // 2 MHz frequency
     timerAttachInterrupt(signal_timer, &signal_generator_callback);
     timerAlarm(signal_timer, 100, true, 0); // 20 kHz frequency
+    timerStop(signal_timer);
 
     // Initialize ADC pins
     for(ADC_sink_t idx = (ADC_sink_t)0; idx < ADC_sink_count; idx = (ADC_sink_t)(idx + 1)) {
@@ -433,12 +434,14 @@ void hal_start_signal(source_net_t pin, float freq) {
     }
     
     // Convert frequency to phase increment for 20kHz timer
-    // freq = phase_increment * 20000 / 256
-    // phase_increment = freq * 256 / 20000
-    uint32_t phase_increment = (uint32_t)(freq * 256.0f / 20000.0f);
+    // freq = phase_increment * 20000 / 256 
+    // phase_increment = freq * 256 * 128 decimation / 20000
+    uint32_t phase_increment = (uint32_t)(freq * 256.0f * 128 / 20000.0f);
     
     signal_frequencies[pin] = phase_increment;
     signal_phase[pin] = 0; // Reset phase
+
+    timerStart(signal_timer);
     
     ESP_LOGI(TAG, "Started signal generator on source %d with frequency %f Hz (phase increment: %d)", pin, freq, phase_increment);
 }
@@ -448,9 +451,32 @@ void hal_stop_signal(source_net_t pin) {
         ESP_LOGE(TAG, "Invalid source pin: %d", pin);
         return;
     }
-    
+
     signal_frequencies[pin] = 0;
+
+    // Wait for signal generator to stop
+    int timeout = 100; // 100 ms timeout
+    while (signal_generator_active[pin] && timeout > 0) {
+        delay(1);
+        timeout--;
+    }
     
+    if (timeout <= 0) {
+        ESP_LOGW(TAG, "Timeout waiting for signal generator to stop on source %d", pin);
+    }
+
+    // ensure signal_generator_active is false
+    signal_generator_active[pin] = false;
+
+    // if all signal generators are stopped, stop the timer
+    if (signal_generator_active[0] == false &&
+        signal_generator_active[1] == false &&
+        signal_generator_active[2] == false &&
+        signal_generator_active[3] == false) {
+        ESP_LOGI(TAG, "All signal generators stopped, stopping timer");
+        timerStop(signal_timer);
+    }
+
     ESP_LOGI(TAG, "Stopped signal generator on source %d", pin);
 }
 
@@ -460,16 +486,8 @@ void hal_set_source(source_net_t net, int32_t voltage_mv) {
     // Stop signal generator for this source
     hal_stop_signal(net);
     
-    // Wait for signal generator to stop
-    int timeout = 1000; // 1 second timeout
-    while (signal_generator_active[net] && timeout > 0) {
-        delay(1);
-        timeout--;
-    }
-    
-    if (timeout <= 0) {
-        ESP_LOGW(TAG, "Timeout waiting for signal generator to stop on source %d", net);
-    }
+    // for some reason, fall without this logi
+    ESP_LOGI(TAG, "signal stopped");
     
     // Validate voltage range (in millivolts)
     if (voltage_mv < -5000 || voltage_mv > 5000) {
@@ -493,7 +511,7 @@ void hal_set_source(source_net_t net, int32_t voltage_mv) {
     // Set the voltage using direct function with DAC value
     hal_set_source_direct(net, dac_value);
     
-    ESP_LOGD(TAG, "Set source %d to %d mV (%.2f V, DAC value: %d)", net, voltage_mv, voltage, dac_value);
+    ESP_LOGI(TAG, "Set source %d to %d mV (%.2f V, DAC value: %d)", net, voltage_mv, voltage, dac_value);
 }
 
 void hal_clear_console(void) {

@@ -84,19 +84,6 @@ bool init_webserver() {
     }
 
     ESP_LOGI(TAG, "Web server task created successfully");
-    
-    // Load WiFi credentials and connect
-    if (load_wifi_credentials()) {
-        if (connect_to_wifi()) {
-            ESP_LOGI(TAG, "Successfully connected to WiFi network");
-        } else {
-            ESP_LOGW(TAG, "Failed to connect to WiFi, starting AP mode");
-            enable_wifi();
-        }
-    } else {
-        ESP_LOGW(TAG, "No WiFi credentials found, starting AP mode");
-        enable_wifi();
-    }
 
     return true;
 }

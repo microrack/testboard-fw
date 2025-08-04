@@ -34,7 +34,7 @@ bool perform_startup_sequence() {
     
     // Step 1: Initialize HAL
     hal_init();
-    
+
     // Step 2: Initialize display
     if (!display_init()) {
         ESP_LOGE(TAG, "Failed to initialize display");
@@ -52,7 +52,7 @@ bool perform_startup_sequence() {
         ESP_LOGE(TAG, "Failed to initialize filesystem");
         return false;
     }
-    
+
     // Step 5: Calibrate sensors
     hal_current_calibrate();
     hal_adc_calibrate();

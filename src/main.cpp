@@ -86,10 +86,7 @@ void loop() {
         ESP_LOGW(TAG, "No WiFi credentials found, starting AP mode");
         enable_wifi();
     }
-    
-    // Step 6.1: Turn on fail LED and wait for module
-    mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-    mcp1.digitalWrite(PIN_LED_OK, LOW);
+
     display_printf("Waiting for module...");
 
     bool p12v_ok, p5v_ok, m12v_ok;
@@ -135,13 +132,19 @@ void loop() {
     // Step 6.3: Wait for module removal
     wait_for_module_removal(p12v_ok, p5v_ok, m12v_ok);
 
+    execute_reset_operation();
+
+    mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+    mcp1.digitalWrite(PIN_LED_OK, LOW);
+    display_printf("Module ejected");
+
     delay(100);
 
     bool keep_removed = true;
 
     // check every 10 ms
-    // if module stay removed during 200 ms, print test results
-    for (int i = 0; i < 20; i++) {
+    // if module stay removed during 100 ms, print test results
+    for (int i = 0; i < 10; i++) {
         if (get_power_rails_state(NULL, NULL, NULL) == POWER_RAILS_NONE) {
             delay(10);
         } else {
