@@ -59,7 +59,17 @@ void setup() {
 }
 
 void loop() {
-    enable_wifi();
+    if (load_wifi_credentials()) {
+        if (connect_to_wifi()) {
+            ESP_LOGI(TAG, "WiFi reconnected after testing");
+        } else {
+            ESP_LOGW(TAG, "Failed to reconnect to WiFi, starting AP mode");
+            enable_wifi();
+        }
+    } else {
+        ESP_LOGW(TAG, "No WiFi credentials found, starting AP mode");
+        enable_wifi();
+    }
     
     // Step 6.1: Turn on fail LED and wait for module
     mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
@@ -89,8 +99,6 @@ void loop() {
         // Wait for module removal
         wait_for_module_removal(p12v_ok, p5v_ok, m12v_ok);
         
-        // Re-enable WiFi after testing
-        enable_wifi();
         return;
     }
     

@@ -9,9 +9,9 @@
 
 static const char* TAG = "webserver";
 
-// WiFi credentials
-const char* ssid = "microrack";
-const char* password = "11223344";
+// WiFi credentials - will be loaded from filesystem
+String wifi_ssid = "";
+String wifi_password = "";
 
 // Web server
 WebServer server(80);
@@ -31,6 +31,8 @@ void handleGetConfig();
 void handlePostConfig();
 void handleGetResults();
 void handleNotFound();
+bool load_wifi_credentials();
+bool connect_to_wifi();
 
 // Web server task function
 void webserver_task(void* parameter) {
@@ -83,19 +85,29 @@ bool init_webserver() {
 
     ESP_LOGI(TAG, "Web server task created successfully");
     
-    // Start WiFi initially
-    enable_wifi();
+    // Load WiFi credentials and connect
+    if (load_wifi_credentials()) {
+        if (connect_to_wifi()) {
+            ESP_LOGI(TAG, "Successfully connected to WiFi network");
+        } else {
+            ESP_LOGW(TAG, "Failed to connect to WiFi, starting AP mode");
+            enable_wifi();
+        }
+    } else {
+        ESP_LOGW(TAG, "No WiFi credentials found, starting AP mode");
+        enable_wifi();
+    }
 
     return true;
 }
 
 void enable_wifi() {
-    ESP_LOGI(TAG, "Enabling WiFi");
-    WiFi.softAP(ssid, password);
+    ESP_LOGI(TAG, "Enabling WiFi AP mode");
+    WiFi.softAP("TestBoard_AP", "12345678");
     IPAddress IP = WiFi.softAPIP();
     ESP_LOGI(TAG, "WiFi AP started");
-    ESP_LOGI(TAG, "SSID: %s", ssid);
-    ESP_LOGI(TAG, "Password: %s", password);
+    ESP_LOGI(TAG, "SSID: TestBoard_AP");
+    ESP_LOGI(TAG, "Password: 12345678");
     ESP_LOGI(TAG, "IP address: %s", IP.toString().c_str());
 
     // Start server
@@ -112,8 +124,19 @@ void disable_wifi() {
     // Signal that WiFi is disabled
     wifi_enabled = false;
     
+    // Disconnect from WiFi network if connected
+    if (WiFi.status() == WL_CONNECTED) {
+        WiFi.disconnect();
+        ESP_LOGI(TAG, "WiFi station disconnected");
+    }
+    
+    // Stop AP if running
     WiFi.softAPdisconnect(true);
     ESP_LOGI(TAG, "WiFi AP stopped");
+    
+    // Turn off WiFi completely
+    WiFi.mode(WIFI_OFF);
+    ESP_LOGI(TAG, "WiFi turned off");
 }
 
 void handleRoot() {
@@ -195,6 +218,89 @@ void handleGetResults() {
     
     server.send(200, "text/plain", resultsContent);
     ESP_LOGI(TAG, "Test results sent successfully");
+}
+
+bool load_wifi_credentials() {
+    ESP_LOGI(TAG, "Loading WiFi credentials from filesystem");
+    
+    File wifiFile = LittleFS.open("/wifi", "r");
+    if (!wifiFile) {
+        ESP_LOGE(TAG, "WiFi credentials file not found");
+        return false;
+    }
+    
+    String content = wifiFile.readString();
+    wifiFile.close();
+    
+    // Parse SSID and password from file
+    // Expected format: SSID=your_ssid\nPASSWORD=your_password
+    int ssidPos = content.indexOf("SSID=");
+    int passwordPos = content.indexOf("PASSWORD=");
+    
+    if (ssidPos == -1 || passwordPos == -1) {
+        ESP_LOGE(TAG, "Invalid WiFi credentials format");
+        return false;
+    }
+    
+    // Extract SSID (from SSID= to end of line)
+    int ssidStart = ssidPos + 5;
+    int ssidEnd = content.indexOf('\n', ssidStart);
+    if (ssidEnd == -1) ssidEnd = content.length();
+    wifi_ssid = content.substring(ssidStart, ssidEnd);
+    
+    // Extract password (from PASSWORD= to end of line or end of file)
+    int passwordStart = passwordPos + 9;
+    int passwordEnd = content.indexOf('\n', passwordStart);
+    if (passwordEnd == -1) passwordEnd = content.length();
+    wifi_password = content.substring(passwordStart, passwordEnd);
+    
+    if (wifi_ssid.length() == 0) {
+        ESP_LOGE(TAG, "Empty SSID in WiFi credentials");
+        return false;
+    }
+    
+    ESP_LOGI(TAG, "WiFi credentials loaded - SSID: %s", wifi_ssid.c_str());
+    return true;
+}
+
+bool connect_to_wifi() {
+    ESP_LOGI(TAG, "Attempting to connect to WiFi network: %s", wifi_ssid.c_str());
+    
+    // Set WiFi mode to station
+    WiFi.mode(WIFI_STA);
+    
+    // Begin connection
+    WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());
+    
+    // Wait for connection with timeout
+    int attempts = 0;
+    const int max_attempts = 20; // 10 seconds timeout
+    
+    while (WiFi.status() != WL_CONNECTED && attempts < max_attempts) {
+        delay(500);
+        ESP_LOGI(TAG, "Connecting to WiFi... Attempt %d/%d", attempts + 1, max_attempts);
+        attempts++;
+    }
+    
+    if (WiFi.status() == WL_CONNECTED) {
+        IPAddress IP = WiFi.localIP();
+        ESP_LOGI(TAG, "WiFi connected successfully!");
+        ESP_LOGI(TAG, "SSID: %s", wifi_ssid.c_str());
+        ESP_LOGI(TAG, "IP address: %s", IP.toString().c_str());
+        ESP_LOGI(TAG, "MAC address: %s", WiFi.macAddress().c_str());
+        
+        // Start server
+        server.begin();
+        ESP_LOGI(TAG, "Web server started");
+        
+        // Signal that WiFi is enabled
+        wifi_enabled = true;
+        
+        return true;
+    } else {
+        ESP_LOGE(TAG, "Failed to connect to WiFi network: %s", wifi_ssid.c_str());
+        return false;
+    }
 }
 
 void handleNotFound() {
