@@ -425,7 +425,7 @@
     </style>
 </head>
 <body>
-        <input type="file" id="fileInput" class="file-input" accept=".txt" onchange="uploadFile(this)">
+        <input type="file" id="fileInput" class="file-input" accept="*" onchange="uploadFile(this)">
         
         <div id="status" class="status"></div>
         
@@ -1131,18 +1131,43 @@
             }
         }
 
-        function downloadFile() {
-            const text = generateConfigText();
-            const blob = new Blob([text], { type: 'text/plain' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-                                a.download = 'config';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            showStatus('Configuration downloaded successfully!', 'success');
+        async function downloadFile() {
+            try {
+                const text = generateConfigText();
+                const blob = new Blob([text], { type: 'application/octet-stream' });
+                
+                // Show save file dialog
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: 'config',
+                    types: [{
+                        description: 'Configuration file',
+                        accept: {
+                            'application/octet-stream': ['.config']
+                        }
+                    }]
+                });
+                
+                // Write the file
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                
+                showStatus('Configuration downloaded successfully!', 'success');
+            } catch (error) {
+                console.error('Download error:', error);
+                // Fallback to old method if showSaveFilePicker is not supported
+                const text = generateConfigText();
+                const blob = new Blob([text], { type: 'application/octet-stream' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'config';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                showStatus('Configuration downloaded successfully!', 'success');
+            }
         }
 
         function reloadFromDevice() {
