@@ -38,3 +38,19 @@ io 2 h
 v C 4100 5100 +
 module empty_test 0
 # test
+module mod_lpg 11
+# alias level_pot=out C
+# alias level_pot_pd=pdA
+# alias level_A=out B
+# alias level_B=2
+# alias trig_A=out D
+# alias trig_B=4
+# alias in_A=out A
+# alias in_B=3
+# alias out_A=in A
+# alias out_B=in B
+# alias out_C=in C
+# alias out_D=in D
+# alias mode_lpg=0
+# alias mode_comb=1
+reset
