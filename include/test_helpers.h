@@ -188,6 +188,12 @@ typedef struct {
     int32_t arg2;         // High value for checks (only used for CHECK_CURRENT and CHECK_PIN)
 } test_operation_t;
 
+// Test result structure
+typedef struct {
+    bool passed;          // true if test passed, false if failed
+    int32_t result;       // actual value obtained from the operation (if test failed)
+} test_operation_result_t;
+
 bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges_t& ranges, int* output_mode); 
 
 /**
@@ -195,17 +201,19 @@ bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges
  * 
  * @param operations Array of test operations to execute
  * @param count Number of operations in the array
+ * @param results Array to store test results (must be pre-allocated with size 'count')
  * @return true if all tests passed, false otherwise
  */
-bool execute_test_sequence(const test_operation_t* operations, size_t count);
+bool execute_test_sequence(const test_operation_t* operations, size_t count, test_operation_result_t* results);
 
 /**
  * @brief Execute a single test operation
  * 
  * @param op The test operation to execute
+ * @param result Pointer to store the actual result value (for failed tests)
  * @return true if the operation succeeded, false otherwise
  */
-bool execute_single_operation(const test_operation_t& op);
+bool execute_single_operation(const test_operation_t& op, int32_t* result = nullptr);
 
 /**
  * @brief Execute reset operation - set all pins to safe state
@@ -220,4 +228,6 @@ bool execute_single_operation(const test_operation_t& op);
 bool execute_reset_operation();
 
 // Helper function to map current measurement pin numbers from JSON to actual pins
-int map_current_pin(int pin); 
+int map_current_pin(int pin);
+
+ 

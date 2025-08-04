@@ -29,6 +29,7 @@ volatile bool wifi_enabled = false;
 void handleRoot();
 void handleGetConfig();
 void handlePostConfig();
+void handleGetResults();
 void handleNotFound();
 
 // Web server task function
@@ -61,6 +62,7 @@ bool init_webserver() {
     server.on("/", HTTP_GET, handleRoot);
     server.on("/config", HTTP_GET, handleGetConfig);
     server.on("/config", HTTP_POST, handlePostConfig);
+    server.on("/results", HTTP_GET, handleGetResults);
     server.onNotFound(handleNotFound);
     
     // Create web server task
@@ -163,6 +165,36 @@ void handlePostConfig() {
         ESP_LOGE(TAG, "No configuration data received");
         server.send(400, "text/plain", "No configuration data received");
     }
+}
+
+void handleGetResults() {
+    ESP_LOGI(TAG, "GET /results - Downloading test results");
+    
+    // Check if results file exists
+    if (!LittleFS.exists("/results")) {
+        ESP_LOGE(TAG, "Results file not found");
+        server.send(404, "text/plain", "No test results available");
+        return;
+    }
+    
+    // Open results file
+    File resultsFile = LittleFS.open("/results", "r");
+    if (!resultsFile) {
+        ESP_LOGE(TAG, "Failed to open results file");
+        server.send(500, "text/plain", "Failed to read test results");
+        return;
+    }
+    
+    // Set headers for file download
+    server.sendHeader("Content-Disposition", "attachment; filename=results.txt");
+    server.sendHeader("Content-Type", "text/plain");
+    
+    // Send file content
+    String resultsContent = resultsFile.readString();
+    resultsFile.close();
+    
+    server.send(200, "text/plain", resultsContent);
+    ESP_LOGI(TAG, "Test results sent successfully");
 }
 
 void handleNotFound() {

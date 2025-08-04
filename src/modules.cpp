@@ -5,6 +5,7 @@
 #include "board.h"
 #include <cstring>
 #include <cstdlib>
+#include "test_results.h"
 
 static const char* TAG = "modules";
 
@@ -114,6 +115,8 @@ bool init_modules_from_fs() {
     operations_buffer = (test_operation_t*)malloc(total_operations * sizeof(test_operation_t));
     modules = (module_info_t*)malloc(module_count * sizeof(module_info_t));
     
+
+    
     if (!operations_buffer || !modules) {
         ESP_LOGE(TAG, "Failed to allocate memory for modules");
         file.close();
@@ -153,6 +156,7 @@ bool init_modules_from_fs() {
             current_module->name = name;
             current_module->test_operations = &operations_buffer[operation_index];
             current_module->test_operations_count = 0;
+            current_module->test_results = nullptr; // Will be allocated when needed
             
             module_index++;
             ESP_LOGI(TAG, "Parsing module: %s (ID: %d)", name, current_module->id);
@@ -256,7 +260,7 @@ bool init_modules_from_fs() {
     return true;
 }
 
-const module_info_t* get_module_info(uint8_t id) {
+module_info_t* get_module_info(uint8_t id) {
     if (!modules) {
         ESP_LOGE(TAG, "Modules not initialized");
         return nullptr;
@@ -272,7 +276,15 @@ const module_info_t* get_module_info(uint8_t id) {
     return nullptr;
 }
 
-bool execute_module_tests(const module_info_t* module) {
+module_info_t* get_modules_array() {
+    return modules;
+}
+
+size_t get_modules_count() {
+    return modules_count;
+}
+
+bool execute_module_tests(module_info_t* module) {
     if (!module) {
         ESP_LOGE(TAG, "Module info is null");
         return false;
@@ -282,9 +294,36 @@ bool execute_module_tests(const module_info_t* module) {
     
     // If module has test operations, use declarative approach
     if (module->test_operations && module->test_operations_count > 0) {
-        return execute_test_sequence(module->test_operations, module->test_operations_count);
+        // Find module index to get corresponding test results array
+        extern module_info_t* get_modules_array();
+        extern size_t get_modules_count();
+        
+        module_info_t* modules = get_modules_array();
+        size_t modules_count = get_modules_count();
+        size_t module_index = 0;
+        
+        // Find the module index
+        for (size_t i = 0; i < modules_count; i++) {
+            if (&modules[i] == module) {
+                module_index = i;
+                break;
+            }
+        }
+        
+        // Get test results array from global storage
+        extern test_operation_result_t** get_global_test_results();
+        test_operation_result_t** global_results = get_global_test_results();
+        
+        if (!global_results || !global_results[module_index]) {
+            ESP_LOGE(TAG, "Test results array not available for module: %s", module->name);
+            return false;
+        }
+        
+        bool success = execute_test_sequence(module->test_operations, module->test_operations_count, global_results[module_index]);
+        
+        return success;
     }
     
     ESP_LOGE(TAG, "No test operations for module: %s", module->name);
     return false;
-} 
+}

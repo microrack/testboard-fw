@@ -2,6 +2,7 @@
 #include "board.h"
 #include "hal.h"
 #include "display.h"
+#include "test_results.h"
 
 static const char* TAG = "test_helpers";
 
@@ -65,6 +66,13 @@ bool perform_startup_sequence() {
     hal_adc_calibrate();
     
     ESP_LOGI(TAG, "Calibration complete");
+    
+    // Step 6: Allocate test results arrays
+    if (!allocate_test_results_arrays()) {
+        ESP_LOGE(TAG, "Failed to allocate test results arrays");
+        return false;
+    }
+    
     return true;
 }
 
@@ -252,36 +260,61 @@ bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges
     return false;
 }
 
-bool execute_test_sequence(const test_operation_t* operations, size_t count) {
+bool execute_test_sequence(const test_operation_t* operations, size_t count, test_operation_result_t* results) {
     ESP_LOGI(TAG, "Executing test sequence with %zu operations", count);
+    
+    // Reset all test results
+    for (size_t i = 0; i < count; i++) {
+        results[i].passed = false;
+        results[i].result = 0;
+    }
+    
+    bool all_tests_passed = true;
     
     for (size_t i = 0; i < count; i++) {
         const test_operation_t& op = operations[i];
         bool result = false;
+        int32_t actual_result = 0;
         
-        // Handle repeatable operations
+        // Handle repeatable operations using TEST_RUN_REPEAT logic
         if (op.repeat) {
             do {
-                result = execute_single_operation(op);
+                result = execute_single_operation(op, &actual_result);
                 if (!result) {
-                    delay(50); // Short delay before retry
+                    mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+                    mcp1.digitalWrite(PIN_LED_OK, LOW);
+                    if (get_power_rails_state(NULL, NULL, NULL) != POWER_RAILS_ALL) {
+                        ESP_LOGE(TAG, "Power rails disconnected during repeatable operation");
+                        results[i].passed = false;
+                        results[i].result = actual_result;
+                        all_tests_passed = false;
+                        return false;
+                    }
+                    delay(10);
                 }
             } while (!result);
+            mcp1.digitalWrite(PIN_LED_FAIL, LOW);
         } else {
-            result = execute_single_operation(op);
+            result = execute_single_operation(op, &actual_result);
         }
         
+        // Store test result if still not passed
+        if(!results[i].passed) {
+            results[i].result = actual_result;
+        }
+
+        results[i].passed = result;
+        
         if (!result) {
-            ESP_LOGE(TAG, "Test operation %zu failed", i);
-            return false;
+            all_tests_passed = false;
         }
         
         // Small delay between operations
         delay(1);
     }
     
-    ESP_LOGI(TAG, "Test sequence completed successfully");
-    return true;
+    ESP_LOGI(TAG, "Test sequence completed - %s", all_tests_passed ? "ALL TESTS PASSED" : "SOME TESTS FAILED");
+    return all_tests_passed;
 }
 
 // Helper function to map current measurement pin numbers from JSON to actual pins
@@ -295,7 +328,7 @@ int map_current_pin(int pin) {
 }
 
 // Helper function to execute a single test operation
-bool execute_single_operation(const test_operation_t& op) {
+bool execute_single_operation(const test_operation_t& op, int32_t* result) {
     switch (op.op) {
         case TEST_OP_SOURCE: {
             hal_set_source((source_net_t)op.pin, op.arg1);
@@ -319,6 +352,10 @@ bool execute_single_operation(const test_operation_t& op) {
             int mapped_pin = map_current_pin(op.pin);
             const char* rail_name = (mapped_pin == PIN_INA_12V) ? "+12V" : 
                                    (mapped_pin == PIN_INA_5V) ? "+5V" : "-12V";
+            if (result) {
+                *result = measure_current(mapped_pin);
+                ESP_LOGI(TAG, "Current measurement: %d uA", *result);
+            }
             return check_current((ina_pin_t)mapped_pin, range, rail_name);
         }
         
@@ -330,6 +367,11 @@ bool execute_single_operation(const test_operation_t& op) {
                                   (op.pin == ADC_sink_1k_D) ? "D" :
                                   (op.pin == ADC_sink_1k_E) ? "E" :
                                   (op.pin == ADC_sink_1k_F) ? "F" : "Unknown";
+            if (result) {
+                // Get actual voltage value for failed test
+                *result = hal_adc_read((ADC_sink_t)op.pin); // Returns value in millivolts
+                ESP_LOGI(TAG, "Voltage measurement: %d mV", *result);
+            }
             return test_pin_range((ADC_sink_t)op.pin, range, pin_name);
         }
         

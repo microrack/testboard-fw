@@ -14,6 +14,7 @@
 #include "display.h"
 #include "modules.h"
 #include "webserver.h"
+#include "test_results.h"
 
 static const char* TAG = "main";
 
@@ -68,13 +69,16 @@ void loop() {
     bool p12v_ok, p5v_ok, m12v_ok;
     
     wait_for_module_insertion(p12v_ok, p5v_ok, m12v_ok);
+    
+    // Reset all test results after module insertion
+    reset_all_test_results();
 
     // Disable WiFi before testing
     disable_wifi();
 
     // Get adapter ID and corresponding module info
     uint8_t adapter_id = hal_adapter_id();
-    const module_info_t* module = get_module_info(adapter_id);
+    module_info_t* module = get_module_info(adapter_id);
     
     if (!module) {
         ESP_LOGE(TAG, "Unknown module detected (ID: %d)", adapter_id);
@@ -122,4 +126,24 @@ void loop() {
 
     // Step 6.3: Wait for module removal
     wait_for_module_removal(p12v_ok, p5v_ok, m12v_ok);
+
+    delay(100);
+
+    bool keep_removed = true;
+
+    // check every 10 ms
+    // if module stay removed during 200 ms, print test results
+    for (int i = 0; i < 20; i++) {
+        if (get_power_rails_state(NULL, NULL, NULL) == POWER_RAILS_NONE) {
+            delay(10);
+        } else {
+            keep_removed = false;
+            break;
+        }
+    }
+
+    if (keep_removed) {
+        print_all_test_results();
+        save_all_test_results();
+    }
 }

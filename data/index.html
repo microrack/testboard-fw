@@ -385,6 +385,19 @@
             border: 1px solid #f5c6cb;
         }
         
+        .test-result {
+            font-weight: bold;
+            margin-left: 5px;
+        }
+        
+        .test-result.passed {
+            color: #28a745;
+        }
+        
+        .test-result.failed {
+            color: #dc3545;
+        }
+        
         .hidden {
             display: none;
         }
@@ -411,6 +424,7 @@
                     <button class="btn btn-warning btn-small" onclick="reloadFromDevice()">Reload</button>
                     <button class="btn btn-success btn-small" onclick="saveToDevice()">Save</button>
                     <button class="btn btn-secondary btn-small" onclick="document.getElementById('fileInput').click()">Upload</button>
+                    <button class="btn btn-info btn-small" onclick="loadTestResults()">Refresh Results</button>
                 </div>
             </div>
         </div>
@@ -435,6 +449,7 @@
         };
         let selectedModuleIndex = -1;
         let editMode = 'edit'; // 'edit' or 'raw'
+        let testResults = null; // Store test results
         
         // Pin options for aliases
         const pinOptions = [
@@ -532,11 +547,64 @@
                 .then(data => {
                     parseConfig(data);
                     renderConfig();
+                    loadTestResults(); // Load test results after config
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     showStatus('Failed to load configuration', 'error');
                 });
+        }
+
+        function loadTestResults() {
+            fetch('./results')
+                .then(response => {
+                    if (response.ok) {
+                        return response.text();
+                    } else {
+                        console.log('No test results available');
+                        testResults = null;
+                        return null;
+                    }
+                })
+                .then(data => {
+                    if (data) {
+                        parseTestResults(data);
+                    }
+                    // Re-render to show results
+                    if (selectedModuleIndex >= 0) {
+                        showModuleOperations(selectedModuleIndex);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading test results:', error);
+                    testResults = null;
+                });
+        }
+
+        function parseTestResults(data) {
+            const lines = data.split('\n').filter(line => line.trim());
+            if (lines.length === 0) {
+                testResults = null;
+                return;
+            }
+
+            const moduleName = lines[0].trim();
+            const results = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                const parts = line.split(' ');
+                if (parts.length >= 2) {
+                    const passed = parts[0] === 'true';
+                    const result = parseInt(parts[1]) || 0;
+                    results.push({ passed, result });
+                }
+            }
+
+            testResults = {
+                moduleName: moduleName,
+                results: results
+            };
         }
 
         function parseConfig(text) {
@@ -834,6 +902,7 @@
                         ${paramsHtml}
                         ${operation.type !== 'comment' ? `<input type="checkbox" class="repeat-checkbox" ${operation.repeat ? 'checked' : ''} onchange="updateOperationRepeat(${moduleIndex}, ${opIndex}, this.checked)">` : ''}
                         ${operation.type !== 'comment' ? '<span>Repeat</span>' : ''}
+                        ${getTestResultHtml(moduleIndex, opIndex)}
                     </div>
                 </div>
             `;
@@ -1089,6 +1158,41 @@
             };
             reader.readAsText(file);
             input.value = ''; // Reset input
+        }
+
+        function getTestResultHtml(moduleIndex, opIndex) {
+            if (!testResults || !testResults.results) {
+                return '';
+            }
+            
+            // Check if module name matches
+            const module = currentConfig.modules[moduleIndex];
+            if (!module || testResults.moduleName !== module.name) {
+                return '';
+            }
+            
+            // Count only non-comment operations up to this index
+            let realOperationIndex = 0;
+            for (let i = 0; i < opIndex; i++) {
+                if (module.operations[i] && module.operations[i].type !== 'comment') {
+                    realOperationIndex++;
+                }
+            }
+            
+            // Check if current operation is a comment
+            if (module.operations[opIndex] && module.operations[opIndex].type === 'comment') {
+                return ''; // Don't show results for comments
+            }
+            
+            // Get the result for this real operation
+            if (realOperationIndex >= testResults.results.length) {
+                return '';
+            }
+            
+            const result = testResults.results[realOperationIndex];
+            const resultClass = result.passed ? 'passed' : 'failed';
+            
+            return `<span class="test-result ${resultClass}">${result.result}</span>`;
         }
 
         function showStatus(message, type) {
