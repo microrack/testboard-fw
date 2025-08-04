@@ -318,6 +318,11 @@
             border-color: #17a2b8;
         }
         
+        .operation-type select[data-operation="src_sig"] {
+            background-color: #f0e6ff;
+            border-color: #9c27b0;
+        }
+        
         .operation-type select[data-operation="io"] {
             background-color: #d4edda;
             border-color: #28a745;
@@ -487,6 +492,7 @@
         // Operation types
         const operationTypes = {
             'src': { name: 'Source', params: ['src_pin', 'voltage'] },
+            'src_sig': { name: 'Source Signal', params: ['src_pin', 'frequency'] },
             'io': { name: 'IO', params: ['io_pin', 'state'] },
             'pd': { name: 'Pulldown', params: ['pd_pin', 'pd_state'] },
             'i': { name: 'Check Current', params: ['rail', 'low', 'high'] },
@@ -873,6 +879,12 @@
                 if (opType) {
                     paramsHtml = opType.params.map((param, paramIndex) => {
                         let value = operation.params[paramIndex] || '';
+                        
+                        // Special handling for frequency parameter - use text input
+                        if (param === 'frequency') {
+                            return `<input type="text" class="param-input" value="${value}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, ${paramIndex}, this.value)" placeholder="frequency (Hz)">`;
+                        }
+                        
                         if (paramOptions[param]) {
                             // Add state color classes for specific operations
                             let stateClass = '';
@@ -889,7 +901,7 @@
 
                             let displayValue = value;
                             // Add prefix for display
-                            if (operation.type === 'src') {
+                            if (operation.type === 'src' || operation.type === 'src_sig') {
                                 displayValue = `out ${value}`;
                             } else if (operation.type === 'v') {
                                 displayValue = `in ${value}`;

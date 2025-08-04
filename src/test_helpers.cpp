@@ -320,6 +320,11 @@ bool execute_single_operation(const test_operation_t& op, int32_t* result) {
             return true;
         }
         
+        case TEST_OP_SOURCE_SIG: {
+            hal_start_signal((source_net_t)op.pin, (float)op.arg1);
+            return true;
+        }
+        
         case TEST_OP_IO: {
             hal_set_io((mcp_io_t)op.pin, (io_state_t)op.arg1);
             return true;

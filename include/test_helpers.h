@@ -172,6 +172,7 @@ typedef struct {
 // Test operation types
 typedef enum {
     TEST_OP_SOURCE,      // Set voltage source
+    TEST_OP_SOURCE_SIG,  // Start signal generator
     TEST_OP_IO,          // Set IO pin state
     TEST_OP_SINK_PD,     // Set sink pulldown
     TEST_OP_CHECK_CURRENT, // Check current consumption

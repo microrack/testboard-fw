@@ -3,6 +3,7 @@
 #include <SPI.h>
 #include <DAC8552.h>
 #include <algorithm>
+#include <math.h>
 
 static const char* TAG = "hal";
 
@@ -12,6 +13,17 @@ DAC8552 dac1(PIN_CS1, &SPI_DAC);
 DAC8552 dac2(PIN_CS2, &SPI_DAC);
 Adafruit_MCP23X17 mcp0;  // addr 0x20
 Adafruit_MCP23X17 mcp1;  // addr 0x21
+
+// Signal generator arrays
+static IRAM_ATTR uint32_t signal_frequencies[SOURCE_COUNT] = {0, 0, 0, 0};
+static bool signal_generator_active[SOURCE_COUNT] = {false, false, false, false};
+static uint32_t signal_phase[SOURCE_COUNT] = {0, 0, 0, 0};
+
+// Sine wave lookup table (256 points for one period)
+static uint16_t sine_table[256];
+
+// Timer for signal generation
+static hw_timer_t* signal_timer = NULL;
 
 // Reference values for current calibration
 static int32_t ref_current_12v = 0;
@@ -24,6 +36,73 @@ static int32_t ref_adc_values[ADC_sink_count] = {0};
 // Median filter buffer size
 #define MEDIAN_FILTER_SIZE 15
 
+// Initialize sine wave lookup table
+void init_sine_table() {
+    for (int i = 0; i < 256; i++) {
+        float angle = 2.0f * M_PI * i / 256.0f;
+        float sine = sinf(angle);
+        
+        // Convert to voltage: -2.5V to +2.5V
+        float voltage = 2.5f * sine;
+        
+        // Convert voltage to DAC value: -5V = 0, 0V = 32768, +5V = 65535
+        uint16_t dac_value = (uint16_t)((voltage + 5.0f) * 65535.0f / 10.0f);
+        
+        sine_table[i] = dac_value;
+    }
+}
+
+// Signal generator callback function
+void IRAM_ATTR signal_generator_callback() {
+    for (int i = 0; i < SOURCE_COUNT; i++) {
+        if (signal_frequencies[i] > 0) {
+            // Get DAC value from sine table
+            uint16_t dac_value = sine_table[signal_phase[i] & 0xFF];
+            
+            // Set DAC value directly
+            hal_set_source_direct((source_net_t)i, dac_value);
+            
+            signal_generator_active[i] = true;
+        } else {
+            signal_generator_active[i] = false;
+        }
+    }
+    
+    // Increment table index for next sample
+    for (int i = 0; i < SOURCE_COUNT; i++) {
+        signal_phase[i] += signal_frequencies[i];
+    }
+}
+
+// Direct source setting function with DAC value
+void hal_set_source_direct(source_net_t net, uint16_t dac_value) {
+    // Validate net
+    if (net >= SOURCE_COUNT) {
+        ESP_LOGE(TAG, "Invalid source net: %d", net);
+        return;
+    }
+
+    // Set appropriate DAC based on net
+    switch (net) {
+        case SOURCE_A:
+            dac2.setValue(0, dac_value);  // DAC1 channel A
+            break;
+        case SOURCE_B:
+            dac2.setValue(1, dac_value);  // DAC2 channel B
+            break;
+        case SOURCE_C:
+            dac1.setValue(0, dac_value);  // DAC2 channel A
+            break;
+        case SOURCE_D:
+            dac1.setValue(1, dac_value);  // DAC1 channel B
+            break;
+        default:
+            return;  // Should never reach here due to validation above
+    }
+
+    ESP_LOGD(TAG, "Set source %d to DAC value: %d", net, dac_value);
+}
+
 void hal_init() {
     // Initialize serial port
     Serial.begin(921600);
@@ -32,6 +111,21 @@ void hal_init() {
     // Initialize ESP logging
     esp_log_level_set("*", ESP_LOG_DEBUG);
     esp_log_level_set("hal", ESP_LOG_INFO);  // Set log level for hal tag
+
+    // Initialize signal generator arrays
+    for (int i = 0; i < SOURCE_COUNT; i++) {
+        signal_frequencies[i] = 0;
+        signal_generator_active[i] = false;
+        signal_phase[i] = 0;
+    }
+
+    // Initialize sine wave lookup table
+    init_sine_table();
+
+    // Initialize signal generator timer
+    signal_timer = timerBegin(2000000); // 2 MHz frequency
+    timerAttachInterrupt(signal_timer, &signal_generator_callback);
+    timerAlarm(signal_timer, 100, true, 0); // 20 kHz frequency
 
     // Initialize ADC pins
     for(ADC_sink_t idx = (ADC_sink_t)0; idx < ADC_sink_count; idx = (ADC_sink_t)(idx + 1)) {
@@ -327,7 +421,56 @@ void hal_print_current(void) {
              current_12v_ma, current_5v_ma, current_m12v_ma);
 }
 
+void hal_start_signal(source_net_t pin, float freq) {
+    if (pin >= SOURCE_COUNT) {
+        ESP_LOGE(TAG, "Invalid source pin: %d", pin);
+        return;
+    }
+    
+    if (freq < 0.0f) {
+        ESP_LOGE(TAG, "Invalid frequency: %f Hz. Must be >= 0", freq);
+        return;
+    }
+    
+    // Convert frequency to phase increment for 20kHz timer
+    // freq = phase_increment * 20000 / 256
+    // phase_increment = freq * 256 / 20000
+    uint32_t phase_increment = (uint32_t)(freq * 256.0f / 20000.0f);
+    
+    signal_frequencies[pin] = phase_increment;
+    signal_phase[pin] = 0; // Reset phase
+    
+    ESP_LOGI(TAG, "Started signal generator on source %d with frequency %f Hz (phase increment: %d)", pin, freq, phase_increment);
+}
+
+void hal_stop_signal(source_net_t pin) {
+    if (pin >= SOURCE_COUNT) {
+        ESP_LOGE(TAG, "Invalid source pin: %d", pin);
+        return;
+    }
+    
+    signal_frequencies[pin] = 0;
+    
+    ESP_LOGI(TAG, "Stopped signal generator on source %d", pin);
+}
+
 void hal_set_source(source_net_t net, int32_t voltage_mv) {
+    ESP_LOGI(TAG, "Phase: %d", signal_phase[net]);
+
+    // Stop signal generator for this source
+    hal_stop_signal(net);
+    
+    // Wait for signal generator to stop
+    int timeout = 1000; // 1 second timeout
+    while (signal_generator_active[net] && timeout > 0) {
+        delay(1);
+        timeout--;
+    }
+    
+    if (timeout <= 0) {
+        ESP_LOGW(TAG, "Timeout waiting for signal generator to stop on source %d", net);
+    }
+    
     // Validate voltage range (in millivolts)
     if (voltage_mv < -5000 || voltage_mv > 5000) {
         ESP_LOGE(TAG, "Invalid voltage: %d mV. Must be between -5000 and +5000 mV", voltage_mv);
@@ -347,24 +490,9 @@ void hal_set_source(source_net_t net, int32_t voltage_mv) {
     // -5V = 0, 0V = 32768, +5V = 65535
     uint16_t dac_value = (uint16_t)((voltage + 5.0f) * 65535.0f / 10.0f);
 
-    // Set appropriate DAC based on net
-    switch (net) {
-        case SOURCE_A:
-            dac2.setValue(0, dac_value);  // DAC1 channel A
-            break;
-        case SOURCE_B:
-            dac2.setValue(1, dac_value);  // DAC2 channel B
-            break;
-        case SOURCE_C:
-            dac1.setValue(0, dac_value);  // DAC2 channel A
-            break;
-        case SOURCE_D:
-            dac1.setValue(1, dac_value);  // DAC1 channel B
-            break;
-        default:
-            return;  // Should never reach here due to validation above
-    }
-
+    // Set the voltage using direct function with DAC value
+    hal_set_source_direct(net, dac_value);
+    
     ESP_LOGD(TAG, "Set source %d to %d mV (%.2f V, DAC value: %d)", net, voltage_mv, voltage, dac_value);
 }
 

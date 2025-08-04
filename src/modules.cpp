@@ -194,6 +194,17 @@ bool init_modules_from_fs() {
                 op.arg1 = atoi(token);
                 op.arg2 = 0;
                 
+            } else if (strcmp(token, "src_sig") == 0) {
+                op.op = TEST_OP_SOURCE_SIG;
+                op.repeat = repeat_flag;
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.pin = string_to_source(token);
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg1 = atoi(token); // Frequency in Hz
+                op.arg2 = 0;
+                
             } else if (strcmp(token, "io") == 0) {
                 op.op = TEST_OP_IO;
                 op.repeat = repeat_flag;

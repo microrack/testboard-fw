@@ -28,10 +28,16 @@ typedef enum {
     SOURCE_D,
     SOURCE_COUNT
 } source_net_t; 
+
 // DAC control functions
 void dac_init();
 void write_dac(int cs_pin, uint8_t channel, uint16_t value);
 void hal_set_source(source_net_t net, int32_t voltage_mv);
+void hal_set_source_direct(source_net_t net, uint16_t dac_value);
+
+// Signal generator functions
+void hal_start_signal(source_net_t pin, float freq);
+void hal_stop_signal(source_net_t pin);
 
 // MCP initialization
 void mcp_init();
