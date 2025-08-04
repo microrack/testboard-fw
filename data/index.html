@@ -677,7 +677,6 @@
                             params: parts.slice(1)
                         };
                         if (operation.repeat) {
-                            console.log(operation.params);
                             // Remove all trailing '+' characters from the last parameter
                             operation.params[operation.params.length - 1] = operation.params[operation.params.length - 1].replace(/\+$/, '');
                         }
@@ -888,20 +887,21 @@
                             const module = currentConfig.modules[moduleIndex];
                             const optionsWithAliases = getOptionsWithAliases(param, module);
 
+                            let displayValue = value;
                             // Add prefix for display
                             if (operation.type === 'src') {
-                                value = `out ${value}`;
+                                displayValue = `out ${value}`;
                             } else if (operation.type === 'v') {
-                                value = `in ${value}`;
+                                displayValue = `in ${value}`;
                             }
 
-                            let displayValue = replaceWithAlias(value, module);
+                            displayValue = replaceWithAlias(displayValue, module);
                             
                             return `<select class="param-select ${stateClass}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, ${paramIndex}, this.value)">
                                 <option value="">Select ${param}</option>
-                                ${optionsWithAliases.map(opt => {
+                                ${optionsWithAliases.map((opt, i) => {
                                     const isSelected = opt === displayValue;
-                                    return `<option value="${opt}" ${isSelected ? 'selected' : ''}>${opt}</option>`;
+                                    return `<option value="${paramOptions[param][i]}" ${isSelected ? 'selected' : ''}>${opt}</option>`;
                                 }).join('')}
                             </select>`;
                         } else {
