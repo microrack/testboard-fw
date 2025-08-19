@@ -106,7 +106,7 @@ void enable_wifi() {
 }
 
 void disable_wifi() {
-    ESP_LOGI(TAG, "Disabling WiFi");
+    // ESP_LOGI(TAG, "Disabling WiFi");
     
     // Signal that WiFi is disabled
     wifi_enabled = false;
@@ -114,12 +114,12 @@ void disable_wifi() {
     // Disconnect from WiFi network if connected
     if (WiFi.status() == WL_CONNECTED) {
         WiFi.disconnect();
-        ESP_LOGI(TAG, "WiFi station disconnected");
+        // ESP_LOGI(TAG, "WiFi station disconnected");
     }
     
     // Stop AP if running
     WiFi.softAPdisconnect(true);
-    ESP_LOGI(TAG, "WiFi AP stopped");
+    // ESP_LOGI(TAG, "WiFi AP stopped");
     
     // Turn off WiFi completely
     WiFi.mode(WIFI_OFF);
@@ -207,9 +207,7 @@ void handleGetResults() {
     ESP_LOGI(TAG, "Test results sent successfully");
 }
 
-bool load_wifi_credentials() {
-    ESP_LOGI(TAG, "Loading WiFi credentials from filesystem");
-    
+bool load_wifi_credentials() {    
     File wifiFile = LittleFS.open("/wifi", "r");
     if (!wifiFile) {
         ESP_LOGE(TAG, "WiFi credentials file not found");
@@ -245,8 +243,7 @@ bool load_wifi_credentials() {
         ESP_LOGE(TAG, "Empty SSID in WiFi credentials");
         return false;
     }
-    
-    ESP_LOGI(TAG, "WiFi credentials loaded - SSID: %s", wifi_ssid.c_str());
+
     return true;
 }
 
@@ -265,7 +262,7 @@ bool connect_to_wifi() {
     
     while (WiFi.status() != WL_CONNECTED && attempts < max_attempts) {
         delay(500);
-        ESP_LOGI(TAG, "Connecting to WiFi... Attempt %d/%d", attempts + 1, max_attempts);
+        // ESP_LOGI(TAG, "Connecting to WiFi... Attempt %d/%d", attempts + 1, max_attempts);
         attempts++;
     }
     
@@ -278,7 +275,7 @@ bool connect_to_wifi() {
         
         // Start server
         server.begin();
-        ESP_LOGI(TAG, "Web server started");
+        // ESP_LOGI(TAG, "Web server started");
         
         // Signal that WiFi is enabled
         wifi_enabled = true;

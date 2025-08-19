@@ -385,10 +385,12 @@ int32_t measure_current(uint8_t pin) {
             break;
     }
     
+    /*
     ESP_LOGD(TAG, "Current measurement - Raw: %d uA, Calibrated: %d uA", 
              current + (pin == PIN_INA_12V ? ref_current_12v : 
                        pin == PIN_INA_5V ? ref_current_5v : ref_current_m12v),
              current);
+    */
              
     current = max((int32_t)0, current);
              
@@ -473,21 +475,21 @@ void hal_stop_signal(source_net_t pin) {
         signal_generator_active[1] == false &&
         signal_generator_active[2] == false &&
         signal_generator_active[3] == false) {
-        ESP_LOGI(TAG, "All signal generators stopped, stopping timer");
+        // ESP_LOGI(TAG, "All signal generators stopped, stopping timer");
         timerStop(signal_timer);
     }
 
-    ESP_LOGI(TAG, "Stopped signal generator on source %d", pin);
+    // ESP_LOGI(TAG, "Stopped signal generator on source %d", pin);
 }
 
 void hal_set_source(source_net_t net, int32_t voltage_mv) {
-    ESP_LOGI(TAG, "Phase: %d", signal_phase[net]);
+    // ESP_LOGI(TAG, "Phase: %d", signal_phase[net]);
 
     // Stop signal generator for this source
     hal_stop_signal(net);
     
     // for some reason, fall without this logi
-    ESP_LOGI(TAG, "signal stopped");
+    // ESP_LOGI(TAG, "signal stopped");
     
     // Validate voltage range (in millivolts)
     if (voltage_mv < -5000 || voltage_mv > 5000) {

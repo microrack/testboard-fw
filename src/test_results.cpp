@@ -32,9 +32,7 @@ bool allocate_test_results_arrays(module_info_t* module) {
     return true;
 }
 
-void reset_all_test_results() {
-    ESP_LOGI(TAG, "Resetting test results");
-    
+void reset_all_test_results() {    
     if (!global_test_results || !current_module) {
         ESP_LOGE(TAG, "Test results array not allocated or no current module");
         return;
@@ -44,7 +42,6 @@ void reset_all_test_results() {
         global_test_results[j].passed = false;
         global_test_results[j].result = 0;
     }
-    ESP_LOGI(TAG, "Reset %zu test results for module %s", current_module->test_operations_count, current_module->name);
 }
 
 void print_all_test_results() {

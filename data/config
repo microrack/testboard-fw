@@ -21,21 +21,21 @@ src A 2000
 v A 120 190
 reset 
 io 0 h
-v A 4100 5100       +
+v A 4100 5100         +
 # # check channel 2
 reset 
 src B 2000
 v B 120 190
 reset 
 io 1 h
-v B 4100 5100       +
+v B 4100 5100         +
 # # check channel 3
 reset 
 src C 2000
 v C 120 190
 reset 
 io 2 h
-v C 4100 5100       +
+v C 4100 5100         +
 module empty_test 0
 # test
 module mod_lpg 11
@@ -70,4 +70,6 @@ v pdB 490 650
 # # main check
 reset 
 src D 3000
-# send signal to in
+src_sig A 200
+scope A 8000 512
+freq A 180 220

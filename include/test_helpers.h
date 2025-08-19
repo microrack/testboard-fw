@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include "hal.h"
+#include "sigscoper.h"
 
 /**
  * @brief Macro to execute a function and return false on failure
@@ -177,7 +178,12 @@ typedef enum {
     TEST_OP_SINK_PD,     // Set sink pulldown
     TEST_OP_CHECK_CURRENT, // Check current consumption
     TEST_OP_CHECK_PIN,   // Check pin voltage
-    TEST_OP_RESET        // Reset all pins to safe state
+    TEST_OP_RESET,       // Reset all pins to safe state
+    TEST_OP_SCOPE,       // Start Sigscoper in FREE mode
+    TEST_OP_CHECK_MIN,   // Check minimum signal value
+    TEST_OP_CHECK_MAX,   // Check maximum signal value
+    TEST_OP_CHECK_AVG,   // Check average signal value
+    TEST_OP_CHECK_FREQ   // Check signal frequency
 } test_op_type_t;
 
 // Test operation structure
@@ -230,5 +236,20 @@ bool execute_reset_operation();
 
 // Helper function to map current measurement pin numbers from JSON to actual pins
 int map_current_pin(int pin);
+
+// Sigscoper global instance and state
+extern class Sigscoper* global_sigscoper;
+extern int last_scope_pin;
+extern bool sigscoper_initialized;
+
+// Sigscoper functions
+bool start_sigscoper(ADC_sink_t pin, uint32_t sample_freq, size_t buffer_size);
+bool check_signal_min(ADC_sink_t pin, const range_t& range);
+bool check_signal_max(ADC_sink_t pin, const range_t& range);
+bool check_signal_avg(ADC_sink_t pin, const range_t& range);
+bool check_signal_freq(ADC_sink_t pin, const range_t& range);
+
+// Helper functions for ADC mapping
+adc_unit_t adc_sink_to_unit(ADC_sink_t pin);
 
  

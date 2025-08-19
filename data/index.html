@@ -348,6 +348,31 @@
             border-color: #6f42c1;
         }
         
+        .operation-type select[data-operation="scope"] {
+            background-color: #ffeaa7;
+            border-color: #fdcb6e;
+        }
+        
+        .operation-type select[data-operation="check_min"] {
+            background-color: #fd79a8;
+            border-color: #e84393;
+        }
+        
+        .operation-type select[data-operation="check_max"] {
+            background-color: #fd79a8;
+            border-color: #e84393;
+        }
+        
+        .operation-type select[data-operation="check_avg"] {
+            background-color: #fd79a8;
+            border-color: #e84393;
+        }
+        
+        .operation-type select[data-operation="check_freq"] {
+            background-color: #fd79a8;
+            border-color: #e84393;
+        }
+        
         .operation-params {
             display: flex;
             gap: 3px;
@@ -497,6 +522,11 @@
             'pd': { name: 'Pulldown', params: ['pd_pin', 'pd_state'] },
             'i': { name: 'Check Current', params: ['rail', 'low', 'high'] },
             'v': { name: 'Check Voltage', params: ['pin', 'low', 'high'] },
+            'scope': { name: 'Scope', params: ['pin', 'sample_freq', 'buffer_size'] },
+            'min': { name: 'Check Min', params: ['pin', 'low', 'high'] },
+            'max': { name: 'Check Max', params: ['pin', 'low', 'high'] },
+            'avg': { name: 'Check Average', params: ['pin', 'low', 'high'] },
+            'freq': { name: 'Check Frequency', params: ['pin', 'low', 'high'] },
             'reset': { name: 'Reset', params: [] },
             'comment': { name: 'Comment', params: [] }
         };
@@ -554,7 +584,9 @@
             'pd_pin': ['pdA', 'pdB', 'pdC'],
             'state': ['h', 'l', 'z'],
             'pd_state': ['p', 'z'],
-            'rail': ['+12', '+5', '-12']
+            'rail': ['+12', '+5', '-12'],
+            'sample_freq': ['1000', '5000', '10000', '50000', '100000'],
+            'buffer_size': ['1024', '2048', '4096', '8192', '16384']
         };
         
         // Load current configuration on page load
@@ -885,6 +917,11 @@
                             return `<input type="text" class="param-input" value="${value}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, ${paramIndex}, this.value)" placeholder="frequency (Hz)">`;
                         }
                         
+                        // Special handling for sample_freq and buffer_size parameters - use text input
+                        if (param === 'sample_freq' || param === 'buffer_size') {
+                            return `<input type="text" class="param-input" value="${value}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, ${paramIndex}, this.value)" placeholder="${param}">`;
+                        }
+                        
                         if (paramOptions[param]) {
                             // Add state color classes for specific operations
                             let stateClass = '';
@@ -903,7 +940,13 @@
                             // Add prefix for display
                             if (operation.type === 'src' || operation.type === 'src_sig') {
                                 displayValue = `out ${value}`;
-                            } else if (operation.type === 'v') {
+                            } else if (
+                                operation.type === 'v'
+                                || operation.type === 'scope'
+                                || operation.type === 'check_min'
+                                || operation.type === 'check_max'
+                                || operation.type === 'check_avg'
+                                || operation.type === 'check_freq') {
                                 displayValue = `in ${value}`;
                             }
 

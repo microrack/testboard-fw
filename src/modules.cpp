@@ -260,6 +260,71 @@ bool init_modules_from_fs() {
                 op.arg1 = 0; // Not used for reset
                 op.arg2 = 0; // Not used for reset
                 
+            } else if (strcmp(token, "scope") == 0) {
+                op.op = TEST_OP_SCOPE;
+                op.repeat = repeat_flag;
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.pin = string_to_voltage_pin(token);
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg1 = atoi(token); // Sample frequency
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg2 = atoi(token); // Buffer size
+                
+            } else if (strcmp(token, "min") == 0) {
+                op.op = TEST_OP_CHECK_MIN;
+                op.repeat = repeat_flag;
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.pin = string_to_voltage_pin(token);
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg1 = atoi(token); // Low value
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg2 = atoi(token); // High value
+                
+            } else if (strcmp(token, "max") == 0) {
+                op.op = TEST_OP_CHECK_MAX;
+                op.repeat = repeat_flag;
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.pin = string_to_voltage_pin(token);
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg1 = atoi(token); // Low value
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg2 = atoi(token); // High value
+                
+            } else if (strcmp(token, "avg") == 0) {
+                op.op = TEST_OP_CHECK_AVG;
+                op.repeat = repeat_flag;
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.pin = string_to_voltage_pin(token);
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg1 = atoi(token); // Low value
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg2 = atoi(token); // High value
+                
+            } else if (strcmp(token, "freq") == 0) {
+                op.op = TEST_OP_CHECK_FREQ;
+                op.repeat = repeat_flag;
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.pin = string_to_voltage_pin(token);
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg1 = atoi(token); // Low value
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg2 = atoi(token); // High value
+                
             } else {
                 ESP_LOGW(TAG, "Unknown operation: %s", token);
                 continue;
@@ -307,7 +372,7 @@ bool execute_module_tests(module_info_t* module) {
         return false;
     }
     
-    ESP_LOGI(TAG, "Executing tests for module: %s", module->name);
+    // ESP_LOGI(TAG, "Executing tests for module: %s", module->name);
     
     // If module has test operations, use declarative approach
     if (module->test_operations && module->test_operations_count > 0) {

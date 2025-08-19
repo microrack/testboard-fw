@@ -8,6 +8,11 @@
 
 static const char* TAG = "test_helpers";
 
+// Global Sigscoper instance and state
+Sigscoper* global_sigscoper = nullptr;
+int last_scope_pin = -1;
+bool sigscoper_initialized = false;
+
 power_rails_state_t get_power_rails_state(bool* p12v_state, bool* p5v_state, bool* m12v_state) {
     // Create local variables to store the states
     bool p12v = mcp1.digitalRead(PIN_P12V_PASS);
@@ -247,7 +252,7 @@ bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges
 }
 
 bool execute_test_sequence(const test_operation_t* operations, size_t count, test_operation_result_t* results) {
-    ESP_LOGI(TAG, "Executing test sequence with %zu operations", count);
+    // ESP_LOGI(TAG, "Executing test sequence with %zu operations", count);
     
     bool all_tests_passed = true;
     
@@ -278,14 +283,14 @@ bool execute_test_sequence(const test_operation_t* operations, size_t count, tes
             result = execute_single_operation(op, &actual_result);
         }
 
-        ESP_LOGI(TAG, "Op result: %s", result ? "PASS" : "FAIL");
+        // ESP_LOGI(TAG, "Op result: %s", result ? "PASS" : "FAIL");
         
         // Store test result if still not passed
         if(!results[i].passed) {
-            ESP_LOGI(TAG, "Write result %d", actual_result);
+            // ESP_LOGI(TAG, "Write result %d", actual_result);
             results[i].result = actual_result;
         } else {
-            ESP_LOGI(TAG, "Skip result write, already passed");
+            // ESP_LOGI(TAG, "Skip result write, already passed");
         }
 
         results[i].passed = result;
@@ -366,13 +371,37 @@ bool execute_single_operation(const test_operation_t& op, int32_t* result) {
             if (result) {
                 // Get actual voltage value for failed test
                 *result = hal_adc_read((ADC_sink_t)op.pin); // Returns value in millivolts
-                ESP_LOGI(TAG, "Voltage measurement: %d mV", *result);
+                // ESP_LOGI(TAG, "Voltage measurement: %d mV", *result);
             }
             return test_pin_range((ADC_sink_t)op.pin, range, pin_name);
         }
         
         case TEST_OP_RESET: {
             return execute_reset_operation();
+        }
+        
+        case TEST_OP_SCOPE: {
+            return start_sigscoper((ADC_sink_t)op.pin, op.arg1, op.arg2);
+        }
+        
+        case TEST_OP_CHECK_MIN: {
+            range_t range = {op.arg1, op.arg2};
+            return check_signal_min((ADC_sink_t)op.pin, range);
+        }
+        
+        case TEST_OP_CHECK_MAX: {
+            range_t range = {op.arg1, op.arg2};
+            return check_signal_max((ADC_sink_t)op.pin, range);
+        }
+        
+        case TEST_OP_CHECK_AVG: {
+            range_t range = {op.arg1, op.arg2};
+            return check_signal_avg((ADC_sink_t)op.pin, range);
+        }
+        
+        case TEST_OP_CHECK_FREQ: {
+            range_t range = {op.arg1, op.arg2};
+            return check_signal_freq((ADC_sink_t)op.pin, range);
         }
         
         default:
@@ -405,6 +434,247 @@ bool execute_reset_operation() {
     mcp1.pinMode(PIN_SINK_PD_B, LOW);
     mcp1.pinMode(PIN_SINK_PD_C, LOW);
     
-    ESP_LOGI(TAG, "Reset operation completed successfully");
+    // ESP_LOGI(TAG, "Reset operation completed successfully");
+    
+    // Stop Sigscoper if running
+    if (global_sigscoper && global_sigscoper->is_running()) {
+        global_sigscoper->stop();
+    }
+    
+    return true;
+}
+
+// Helper function to convert ADC_sink_t to adc_unit_t
+adc_unit_t adc_sink_to_unit(ADC_sink_t pin) {
+    switch (pin) {
+        case ADC_sink_1k_A: return ADC_UNIT_1;  // GPIO36 -> ADC1
+        case ADC_sink_1k_B: return ADC_UNIT_1;  // GPIO39 -> ADC1
+        case ADC_sink_1k_C: return ADC_UNIT_1;  // GPIO34 -> ADC1
+        case ADC_sink_1k_D: return ADC_UNIT_1;  // GPIO35 -> ADC1
+        case ADC_sink_1k_E: return ADC_UNIT_1;  // GPIO32 -> ADC1
+        case ADC_sink_1k_F: return ADC_UNIT_1;  // GPIO33 -> ADC1
+        case ADC_sink_PD_A: return ADC_UNIT_2;  // GPIO25 -> ADC2
+        case ADC_sink_PD_B: return ADC_UNIT_2;  // GPIO26 -> ADC2
+        case ADC_sink_PD_C: return ADC_UNIT_2;  // GPIO27 -> ADC2
+        case ADC_sink_Z_D: return ADC_UNIT_2;   // GPIO14 -> ADC2
+        case ADC_sink_Z_E: return ADC_UNIT_2;   // GPIO12 -> ADC2
+        case ADC_sink_Z_F: return ADC_UNIT_2;   // GPIO13 -> ADC2
+        default: return ADC_UNIT_1;
+    }
+}
+
+// Helper function to convert ADC_sink_t to adc_channel_t
+static adc_channel_t adc_sink_to_channel(ADC_sink_t pin) {
+    switch (pin) {
+        case ADC_sink_1k_A: return ADC_CHANNEL_0;  // GPIO36
+        case ADC_sink_1k_B: return ADC_CHANNEL_3;  // GPIO39
+        case ADC_sink_1k_C: return ADC_CHANNEL_6;  // GPIO34
+        case ADC_sink_1k_D: return ADC_CHANNEL_7;  // GPIO35
+        case ADC_sink_1k_E: return ADC_CHANNEL_4;  // GPIO32
+        case ADC_sink_1k_F: return ADC_CHANNEL_5;  // GPIO33
+        case ADC_sink_PD_A: return ADC_CHANNEL_8;  // GPIO25
+        case ADC_sink_PD_B: return ADC_CHANNEL_9;  // GPIO26
+        case ADC_sink_PD_C: return ADC_CHANNEL_7;  // GPIO27 (Note: conflicts with 1k_D)
+        case ADC_sink_Z_D: return ADC_CHANNEL_5;   // GPIO14
+        case ADC_sink_Z_E: return ADC_CHANNEL_4;   // GPIO12
+        case ADC_sink_Z_F: return ADC_CHANNEL_6;   // GPIO13
+        default: return ADC_CHANNEL_0;
+    }
+}
+
+// Helper function to get pin name for display
+static const char* get_pin_name(ADC_sink_t pin) {
+    switch (pin) {
+        case ADC_sink_1k_A: return "A";
+        case ADC_sink_1k_B: return "B";
+        case ADC_sink_1k_C: return "C";
+        case ADC_sink_1k_D: return "D";
+        case ADC_sink_1k_E: return "E";
+        case ADC_sink_1k_F: return "F";
+        case ADC_sink_PD_A: return "pdA";
+        case ADC_sink_PD_B: return "pdB";
+        case ADC_sink_PD_C: return "pdC";
+        case ADC_sink_Z_D: return "zD";
+        case ADC_sink_Z_E: return "zE";
+        case ADC_sink_Z_F: return "zF";
+        default: return "Unknown";
+    }
+}
+
+// Helper function for common signal checking logic
+static bool check_signal_common(ADC_sink_t pin, SigscoperStats* stats) {
+    // Check if scope was started with the same pin
+    if (last_scope_pin != pin) {
+        ESP_LOGE(TAG, "Scope was not started with pin %s (last pin: %d)", 
+                 get_pin_name(pin), last_scope_pin);
+        return false;
+    }
+
+    // ESP_LOGI(TAG, "Checking signal on pin %s", get_pin_name(pin));
+    
+    // Wait for acquisition to complete
+    while (global_sigscoper->is_running()) {
+        delay(10);
+    }
+
+    // ESP_LOGI(TAG, "Acquisition completed for pin %s", get_pin_name(pin));
+    
+    // Get statistics
+    if (!global_sigscoper->get_stats(0, stats)) {
+        ESP_LOGE(TAG, "Failed to get statistics from Sigscoper");
+        return false;
+    }
+    
+    return true;
+}
+
+// Function to start Sigscoper in FREE mode
+bool start_sigscoper(ADC_sink_t pin, uint32_t sample_freq, size_t buffer_size) {
+    ESP_LOGI(TAG, "Starting Sigscoper on pin %s, freq: %d Hz, buffer: %d", 
+             get_pin_name(pin), sample_freq, buffer_size);
+    
+    // Initialize Sigscoper if not already done
+    if (!sigscoper_initialized) {
+        if (!global_sigscoper) {
+            global_sigscoper = new Sigscoper();
+        }
+        
+        if (!global_sigscoper->begin()) {
+            ESP_LOGE(TAG, "Failed to initialize Sigscoper");
+            return false;
+        }
+        sigscoper_initialized = true;
+    }
+    
+    // Stop previous acquisition if running
+    if (global_sigscoper->is_running()) {
+        global_sigscoper->stop();
+    }
+    
+    // Configure Sigscoper
+    SigscoperConfig config;
+    config.channel_count = 1;
+    config.channels[0] = adc_sink_to_channel(pin);
+    config.adc_unit = adc_sink_to_unit(pin);  // Set ADC unit based on pin
+    config.trigger_mode = TriggerMode::FREE;
+    config.trigger_level = 2048;  // Default trigger level
+    config.sampling_rate = sample_freq;
+    config.auto_speed = 0.002f;   // Default auto speed
+    config.buffer_size = buffer_size;
+    
+    // Start acquisition
+    if (!global_sigscoper->start(config)) {
+        ESP_LOGE(TAG, "Failed to start Sigscoper");
+        return false;
+    }
+    
+    last_scope_pin = pin;
+    ESP_LOGI(TAG, "Sigscoper started successfully");
+    return true;
+}
+
+
+
+// Function to check signal minimum value
+bool check_signal_min(ADC_sink_t pin, const range_t& range) {
+    ESP_LOGI(TAG, "Checking min on pin %s", get_pin_name(pin));
+    
+    SigscoperStats stats;
+    if (!check_signal_common(pin, &stats)) {
+        return false;
+    }
+    
+    uint16_t value = stats.min_value;
+    
+    ESP_LOGI(TAG, "min on pin %s: %d (acceptable range: %d-%d)",
+             get_pin_name(pin), value, range.min, range.max);
+    
+    // Check if value is within range
+    if (value < range.min || value > range.max) {
+        ESP_LOGE(TAG, "min on pin %s out of range: %d (expected %d-%d)",
+                 get_pin_name(pin), value, range.min, range.max);
+        display_printf("min on %s out of range\n%d (%d-%d)", 
+                      get_pin_name(pin), value, range.min, range.max);
+        return false;
+    }
+    
+    return true;
+}
+
+// Function to check signal maximum value
+bool check_signal_max(ADC_sink_t pin, const range_t& range) {
+    ESP_LOGI(TAG, "Checking max on pin %s", get_pin_name(pin));
+    
+    SigscoperStats stats;
+    if (!check_signal_common(pin, &stats)) {
+        return false;
+    }
+    
+    uint16_t value = stats.max_value;
+    
+    ESP_LOGI(TAG, "max on pin %s: %d (acceptable range: %d-%d)",
+             get_pin_name(pin), value, range.min, range.max);
+    
+    // Check if value is within range
+    if (value < range.min || value > range.max) {
+        ESP_LOGE(TAG, "max on pin %s out of range: %d (expected %d-%d)",
+                 get_pin_name(pin), value, range.min, range.max);
+        display_printf("max on %s out of range\n%d (%d-%d)", 
+                      get_pin_name(pin), value, range.min, range.max);
+        return false;
+    }
+    
+    return true;
+}
+
+// Function to check signal average value
+bool check_signal_avg(ADC_sink_t pin, const range_t& range) {
+    ESP_LOGI(TAG, "Checking avg on pin %s", get_pin_name(pin));
+    
+    SigscoperStats stats;
+    if (!check_signal_common(pin, &stats)) {
+        return false;
+    }
+    
+    float value = stats.avg_value;
+    
+    ESP_LOGI(TAG, "avg on pin %s: %.2f (acceptable range: %d-%d)",
+             get_pin_name(pin), value, range.min, range.max);
+    
+    // Check if value is within range
+    if (value < range.min || value > range.max) {
+        ESP_LOGE(TAG, "avg on pin %s out of range: %.2f (expected %d-%d)",
+                 get_pin_name(pin), value, range.min, range.max);
+        display_printf("avg on %s out of range\n%.2f (%d-%d)", 
+                      get_pin_name(pin), value, range.min, range.max);
+        return false;
+    }
+    
+    return true;
+}
+
+// Function to check signal frequency
+bool check_signal_freq(ADC_sink_t pin, const range_t& range) {
+    ESP_LOGI(TAG, "Checking freq on pin %s", get_pin_name(pin));
+    
+    SigscoperStats stats;
+    if (!check_signal_common(pin, &stats)) {
+        return false;
+    }
+    
+    float value = stats.frequency;
+    
+    ESP_LOGI(TAG, "freq on pin %s: %.2f (acceptable range: %d-%d)",
+             get_pin_name(pin), value, range.min, range.max);
+    
+    // Check if value is within range
+    if (value < range.min || value > range.max) {
+        ESP_LOGE(TAG, "freq on pin %s out of range: %.2f (expected %d-%d)",
+                 get_pin_name(pin), value, range.min, range.max);
+        display_printf("freq on %s out of range\n%.2f (%d-%d)", 
+                      get_pin_name(pin), value, range.min, range.max);
+        return false;
+    }
+    
     return true;
 } 

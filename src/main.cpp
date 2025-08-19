@@ -76,9 +76,7 @@ void setup() {
 
 void loop() {
     if (load_wifi_credentials()) {
-        if (connect_to_wifi()) {
-            ESP_LOGI(TAG, "WiFi reconnected after testing");
-        } else {
+        if (!connect_to_wifi()) {
             ESP_LOGW(TAG, "Failed to reconnect to WiFi, starting AP mode");
             enable_wifi();
         }
