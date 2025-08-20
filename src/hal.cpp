@@ -291,6 +291,15 @@ void hal_adc_calibrate() {
     }
 }
 
+int32_t hal_adc_raw2mv(int32_t raw, ADC_sink_t idx) {
+    raw -= ref_adc_values[idx];
+
+    int32_t millivolts = (raw * 3300) / 4095;
+    millivolts *= ADC_atten;
+    
+    return millivolts;
+}
+
 int32_t hal_adc_read(ADC_sink_t idx) {
     if (idx >= ADC_sink_count) {
         ESP_LOGE(TAG, "Invalid ADC sink index");
@@ -311,13 +320,8 @@ int32_t hal_adc_read(ADC_sink_t idx) {
     // Get median value
     int raw = get_median(samples, MEDIAN_FILTER_SIZE);
     
-    // Subtract reference value
-    raw -= ref_adc_values[idx];
-    
     // Convert to millivolts (3.3V reference, 12-bit ADC)
-    int32_t millivolts = (raw * 3300) / 4095;
-
-    millivolts *= ADC_atten;
+    int32_t millivolts = hal_adc_raw2mv(raw, idx);
     
     ESP_LOGD(TAG, "ADC sink %d: raw=%d, ref=%d, calib=%d, mV=%d", 
              idx, raw + ref_adc_values[idx], ref_adc_values[idx], raw, millivolts);
