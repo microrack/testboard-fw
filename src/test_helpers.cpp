@@ -386,22 +386,34 @@ bool execute_single_operation(const test_operation_t& op, int32_t* result) {
         
         case TEST_OP_CHECK_MIN: {
             range_t range = {op.arg1, op.arg2};
-            return check_signal_min((ADC_sink_t)op.pin, range);
+            if (result) {
+                *result = 0; // Initialize result
+            }
+            return check_signal_min((ADC_sink_t)op.pin, range, result);
         }
         
         case TEST_OP_CHECK_MAX: {
             range_t range = {op.arg1, op.arg2};
-            return check_signal_max((ADC_sink_t)op.pin, range);
+            if (result) {
+                *result = 0; // Initialize result
+            }
+            return check_signal_max((ADC_sink_t)op.pin, range, result);
         }
         
         case TEST_OP_CHECK_AVG: {
             range_t range = {op.arg1, op.arg2};
-            return check_signal_avg((ADC_sink_t)op.pin, range);
+            if (result) {
+                *result = 0; // Initialize result
+            }
+            return check_signal_avg((ADC_sink_t)op.pin, range, result);
         }
         
         case TEST_OP_CHECK_FREQ: {
             range_t range = {op.arg1, op.arg2};
-            return check_signal_freq((ADC_sink_t)op.pin, range);
+            if (result) {
+                *result = 0; // Initialize result
+            }
+            return check_signal_freq((ADC_sink_t)op.pin, range, result);
         }
         
         default:
@@ -572,7 +584,7 @@ bool start_sigscoper(ADC_sink_t pin, uint32_t sample_freq, size_t buffer_size) {
 
 
 // Function to check signal minimum value
-bool check_signal_min(ADC_sink_t pin, const range_t& range) {
+bool check_signal_min(ADC_sink_t pin, const range_t& range, int32_t* result) {
     ESP_LOGI(TAG, "Checking min on pin %s", get_pin_name(pin));
     
     SigscoperStats stats;
@@ -581,6 +593,11 @@ bool check_signal_min(ADC_sink_t pin, const range_t& range) {
     }
     
     int32_t value = hal_adc_raw2mv(stats.min_value, pin);
+    
+    // Store result value
+    if (result) {
+        *result = value;
+    }
     
     ESP_LOGI(TAG, "min on pin %s: %d (acceptable range: %d-%d)",
              get_pin_name(pin), value, range.min, range.max);
@@ -598,7 +615,7 @@ bool check_signal_min(ADC_sink_t pin, const range_t& range) {
 }
 
 // Function to check signal maximum value
-bool check_signal_max(ADC_sink_t pin, const range_t& range) {
+bool check_signal_max(ADC_sink_t pin, const range_t& range, int32_t* result) {
     ESP_LOGI(TAG, "Checking max on pin %s", get_pin_name(pin));
     
     SigscoperStats stats;
@@ -607,6 +624,11 @@ bool check_signal_max(ADC_sink_t pin, const range_t& range) {
     }
     
     int32_t value = hal_adc_raw2mv(stats.max_value, pin);
+    
+    // Store result value
+    if (result) {
+        *result = value;
+    }
     
     ESP_LOGI(TAG, "max on pin %s: %d (acceptable range: %d-%d)",
              get_pin_name(pin), value, range.min, range.max);
@@ -624,7 +646,7 @@ bool check_signal_max(ADC_sink_t pin, const range_t& range) {
 }
 
 // Function to check signal average value
-bool check_signal_avg(ADC_sink_t pin, const range_t& range) {
+bool check_signal_avg(ADC_sink_t pin, const range_t& range, int32_t* result) {
     ESP_LOGI(TAG, "Checking avg on pin %s", get_pin_name(pin));
     
     SigscoperStats stats;
@@ -634,14 +656,19 @@ bool check_signal_avg(ADC_sink_t pin, const range_t& range) {
     
     int32_t value = hal_adc_raw2mv(stats.avg_value, pin);
     
-    ESP_LOGI(TAG, "avg on pin %s: %.2f (acceptable range: %d-%d)",
+    // Store result value
+    if (result) {
+        *result = value;
+    }
+    
+    ESP_LOGI(TAG, "avg on pin %s: %d (acceptable range: %d-%d)",
              get_pin_name(pin), value, range.min, range.max);
     
     // Check if value is within range
     if (value < range.min || value > range.max) {
-        ESP_LOGE(TAG, "avg on pin %s out of range: %.2f (expected %d-%d)",
+        ESP_LOGE(TAG, "avg on pin %s out of range: %d (expected %d-%d)",
                  get_pin_name(pin), value, range.min, range.max);
-        display_printf("avg on %s out of range\n%.2f (%d-%d)", 
+        display_printf("avg on %s out of range\n%d (%d-%d)", 
                       get_pin_name(pin), value, range.min, range.max);
         return false;
     }
@@ -650,7 +677,7 @@ bool check_signal_avg(ADC_sink_t pin, const range_t& range) {
 }
 
 // Function to check signal frequency
-bool check_signal_freq(ADC_sink_t pin, const range_t& range) {
+bool check_signal_freq(ADC_sink_t pin, const range_t& range, int32_t* result) {
     ESP_LOGI(TAG, "Checking freq on pin %s", get_pin_name(pin));
     
     SigscoperStats stats;
@@ -661,6 +688,11 @@ bool check_signal_freq(ADC_sink_t pin, const range_t& range) {
     float value = stats.frequency;
     // for some reason, fs at 20k looks like 16384
     value = value * 16384 / 20000;
+    
+    // Store result value (convert float to int32_t)
+    if (result) {
+        *result = (int32_t)value;
+    }
     
     ESP_LOGI(TAG, "freq on pin %s: %.2f (acceptable range: %d-%d)",
              get_pin_name(pin), value, range.min, range.max);

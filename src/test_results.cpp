@@ -65,7 +65,13 @@ void print_all_test_results() {
                  (op.op == TEST_OP_SINK_PD) ? "SINK_PD" :
                  (op.op == TEST_OP_CHECK_CURRENT) ? "CHECK_CURRENT" :
                  (op.op == TEST_OP_CHECK_PIN) ? "CHECK_PIN" :
-                 (op.op == TEST_OP_RESET) ? "RESET" : "UNKNOWN",
+                 (op.op == TEST_OP_RESET) ? "RESET" :
+                 (op.op == TEST_OP_SOURCE_SIG) ? "SOURCE_SIG" :
+                 (op.op == TEST_OP_CHECK_MIN) ? "CHECK_MIN" :
+                 (op.op == TEST_OP_CHECK_MAX) ? "CHECK_MAX" :
+                 (op.op == TEST_OP_CHECK_AVG) ? "CHECK_AVG" :
+                 (op.op == TEST_OP_CHECK_FREQ) ? "CHECK_FREQ" :
+                 "UNKNOWN",
                  op.pin, op.arg1, op.arg2);
         
         ESP_LOGI(TAG, "    Flag: %s, Result: %ld", 

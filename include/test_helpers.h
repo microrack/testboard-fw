@@ -239,10 +239,10 @@ int map_current_pin(int pin);
 
 // Sigscoper functions
 bool start_sigscoper(ADC_sink_t pin, uint32_t sample_freq, size_t buffer_size);
-bool check_signal_min(ADC_sink_t pin, const range_t& range);
-bool check_signal_max(ADC_sink_t pin, const range_t& range);
-bool check_signal_avg(ADC_sink_t pin, const range_t& range);
-bool check_signal_freq(ADC_sink_t pin, const range_t& range);
+bool check_signal_min(ADC_sink_t pin, const range_t& range, int32_t* result = nullptr);
+bool check_signal_max(ADC_sink_t pin, const range_t& range, int32_t* result = nullptr);
+bool check_signal_avg(ADC_sink_t pin, const range_t& range, int32_t* result = nullptr);
+bool check_signal_freq(ADC_sink_t pin, const range_t& range, int32_t* result = nullptr);
 
 // Helper functions for ADC mapping
 adc_unit_t adc_sink_to_unit(ADC_sink_t pin);
