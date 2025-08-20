@@ -34,7 +34,7 @@ void display_printf(const char* format, ...) {
     char console_msg[256];
     vsnprintf(console_msg, sizeof(console_msg), format, args);
     va_end(args);
-    ESP_LOGI(TAG, "%s", console_msg);
+    // ESP_LOGI(TAG, "%s", console_msg);
 
     // Format message for display
     va_start(args, format);
