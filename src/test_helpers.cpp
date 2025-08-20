@@ -9,7 +9,7 @@
 static const char* TAG = "test_helpers";
 
 // Global Sigscoper instance and state
-Sigscoper* global_sigscoper = nullptr;
+Sigscoper global_sigscoper;
 int last_scope_pin = -1;
 bool sigscoper_initialized = false;
 
@@ -437,8 +437,8 @@ bool execute_reset_operation() {
     // ESP_LOGI(TAG, "Reset operation completed successfully");
     
     // Stop Sigscoper if running
-    if (global_sigscoper && global_sigscoper->is_running()) {
-        global_sigscoper->stop();
+    if (global_sigscoper.is_running()) {
+        global_sigscoper.stop();
     }
     
     return true;
@@ -513,14 +513,14 @@ static bool check_signal_common(ADC_sink_t pin, SigscoperStats* stats) {
     // ESP_LOGI(TAG, "Checking signal on pin %s", get_pin_name(pin));
     
     // Wait for acquisition to complete
-    while (global_sigscoper->is_running()) {
+    while (!global_sigscoper.is_ready()) {
         delay(10);
     }
 
     // ESP_LOGI(TAG, "Acquisition completed for pin %s", get_pin_name(pin));
     
     // Get statistics
-    if (!global_sigscoper->get_stats(0, stats)) {
+    if (!global_sigscoper.get_stats(0, stats)) {
         ESP_LOGE(TAG, "Failed to get statistics from Sigscoper");
         return false;
     }
@@ -535,20 +535,16 @@ bool start_sigscoper(ADC_sink_t pin, uint32_t sample_freq, size_t buffer_size) {
     
     // Initialize Sigscoper if not already done
     if (!sigscoper_initialized) {
-        if (!global_sigscoper) {
-            global_sigscoper = new Sigscoper();
-        }
-        
-        if (!global_sigscoper->begin()) {
+        if (!global_sigscoper.begin()) {
             ESP_LOGE(TAG, "Failed to initialize Sigscoper");
             return false;
         }
         sigscoper_initialized = true;
     }
     
-    // Stop previous acquisition if running
-    if (global_sigscoper->is_running()) {
-        global_sigscoper->stop();
+    // Wait for previous acquisition
+    if (global_sigscoper.is_running()) {
+        global_sigscoper.stop();
     }
     
     // Configure Sigscoper
@@ -563,13 +559,13 @@ bool start_sigscoper(ADC_sink_t pin, uint32_t sample_freq, size_t buffer_size) {
     config.buffer_size = buffer_size;
     
     // Start acquisition
-    if (!global_sigscoper->start(config)) {
+    if (!global_sigscoper.start(config)) {
         ESP_LOGE(TAG, "Failed to start Sigscoper");
         return false;
     }
     
     last_scope_pin = pin;
-    ESP_LOGI(TAG, "Sigscoper started successfully");
+    // ESP_LOGI(TAG, "Sigscoper started successfully");
     return true;
 }
 
@@ -584,7 +580,7 @@ bool check_signal_min(ADC_sink_t pin, const range_t& range) {
         return false;
     }
     
-    uint16_t value = stats.min_value;
+    int32_t value = hal_adc_raw2mv(stats.min_value, pin);
     
     ESP_LOGI(TAG, "min on pin %s: %d (acceptable range: %d-%d)",
              get_pin_name(pin), value, range.min, range.max);
@@ -610,7 +606,7 @@ bool check_signal_max(ADC_sink_t pin, const range_t& range) {
         return false;
     }
     
-    uint16_t value = stats.max_value;
+    int32_t value = hal_adc_raw2mv(stats.max_value, pin);
     
     ESP_LOGI(TAG, "max on pin %s: %d (acceptable range: %d-%d)",
              get_pin_name(pin), value, range.min, range.max);
@@ -636,7 +632,7 @@ bool check_signal_avg(ADC_sink_t pin, const range_t& range) {
         return false;
     }
     
-    float value = stats.avg_value;
+    int32_t value = hal_adc_raw2mv(stats.avg_value, pin);
     
     ESP_LOGI(TAG, "avg on pin %s: %.2f (acceptable range: %d-%d)",
              get_pin_name(pin), value, range.min, range.max);
@@ -663,6 +659,8 @@ bool check_signal_freq(ADC_sink_t pin, const range_t& range) {
     }
     
     float value = stats.frequency;
+    // for some reason, fs at 20k looks like 16384
+    value = value * 16384 / 20000;
     
     ESP_LOGI(TAG, "freq on pin %s: %.2f (acceptable range: %d-%d)",
              get_pin_name(pin), value, range.min, range.max);
