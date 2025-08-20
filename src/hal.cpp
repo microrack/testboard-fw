@@ -24,6 +24,7 @@ static uint16_t sine_table[256];
 
 // Timer for signal generation
 static hw_timer_t* signal_timer = NULL;
+static bool signal_timer_running = false;
 
 // Reference values for current calibration
 static int32_t ref_current_12v = 0;
@@ -448,6 +449,7 @@ void hal_start_signal(source_net_t pin, float freq) {
     signal_phase[pin] = 0; // Reset phase
 
     timerStart(signal_timer);
+    signal_timer_running = true;
     
     ESP_LOGI(TAG, "Started signal generator on source %d with frequency %f Hz (phase increment: %d)", pin, freq, phase_increment);
 }
@@ -474,13 +476,15 @@ void hal_stop_signal(source_net_t pin) {
     // ensure signal_generator_active is false
     signal_generator_active[pin] = false;
 
-    // if all signal generators are stopped, stop the timer
+    // if all signal generators are stopped and timer is not running, stop the timer
     if (signal_generator_active[0] == false &&
         signal_generator_active[1] == false &&
         signal_generator_active[2] == false &&
         signal_generator_active[3] == false) {
-        // ESP_LOGI(TAG, "All signal generators stopped, stopping timer");
-        timerStop(signal_timer);
+        if (signal_timer_running) {
+            timerStop(signal_timer);
+            signal_timer_running = false;
+        }
     }
 
     // ESP_LOGI(TAG, "Stopped signal generator on source %d", pin);
