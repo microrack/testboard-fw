@@ -237,11 +237,6 @@ bool execute_reset_operation();
 // Helper function to map current measurement pin numbers from JSON to actual pins
 int map_current_pin(int pin);
 
-// Sigscoper global instance and state
-extern class Sigscoper* global_sigscoper;
-extern int last_scope_pin;
-extern bool sigscoper_initialized;
-
 // Sigscoper functions
 bool start_sigscoper(ADC_sink_t pin, uint32_t sample_freq, size_t buffer_size);
 bool check_signal_min(ADC_sink_t pin, const range_t& range);
