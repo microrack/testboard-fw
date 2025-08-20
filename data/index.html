@@ -564,18 +564,6 @@
             return optionsWithAliases;
         };
 
-        // Helper function to get display value
-        const getDisplayValue = (value, paramType) => {
-            if (paramType === 'src_pin') {
-                return `out ${value}`;
-            } else if (paramType === 'io_pin') {
-                return `out ${value}`;
-            } else if (paramType === 'pin') {
-                return `in ${value}`;
-            }
-            return value;
-        };
-
         // Parameter options
         const paramOptions = {
             'pin': ['A', 'B', 'C', 'D', 'E', 'F', 'pdA', 'pdB', 'pdC', 'zD', 'zE', 'zF'],
@@ -943,15 +931,15 @@
                             } else if (
                                 operation.type === 'v'
                                 || operation.type === 'scope'
-                                || operation.type === 'check_min'
-                                || operation.type === 'check_max'
-                                || operation.type === 'check_avg'
-                                || operation.type === 'check_freq') {
+                                || operation.type === 'min'
+                                || operation.type === 'max'
+                                || operation.type === 'avg'
+                                || operation.type === 'freq') {
                                 displayValue = `in ${value}`;
                             }
 
                             displayValue = replaceWithAlias(displayValue, module);
-                            
+
                             return `<select class="param-select ${stateClass}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, ${paramIndex}, this.value)">
                                 <option value="">Select ${param}</option>
                                 ${optionsWithAliases.map((opt, i) => {
