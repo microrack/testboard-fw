@@ -103,8 +103,6 @@ bool check_current(ina_pin_t pin, const range_t& range, const char* rail_name) {
     if (!current_ok) {
         ESP_LOGE(TAG, "%s current out of range: %d uA (expected %d-%d uA)",
                  rail_name, current_ua, range.min, range.max);
-        display_printf("%s current out of range\n%d uA (%d-%d uA)",
-                      rail_name, current_ua, range.min, range.max);
     }
     
     return current_ok;
@@ -133,8 +131,6 @@ bool test_pin_range(ADC_sink_t pin, const range_t& range, const char* pin_name) 
     if (voltage_mv < range.min || voltage_mv > range.max) {
         ESP_LOGE(TAG, "%s voltage out of range: %d mV (expected %d-%d mV)",
                  pin_name, voltage_mv, range.min, range.max);
-        display_printf("%s voltage out of range\n%d mV (%d-%d mV)", 
-                      pin_name, voltage_mv, range.min, range.max);
         return false;
     }
 
@@ -170,15 +166,11 @@ bool test_pin_pd(const voltage_source_t& source,
     if (v_hiz < hiz_range.min || v_hiz > hiz_range.max) {
         ESP_LOGE(TAG, "%s source high-Z voltage out of range: %.2f V (expected %.2f-%.2f V)",
                  source_name, v_hiz, hiz_range.min, hiz_range.max);
-        display_printf("%s high-Z out of range\n%.2f V (%.2f-%.2f V)", 
-                      source_name, v_hiz, hiz_range.min, hiz_range.max);
         return false;
     }
     if (v_pd < pd_range.min || v_pd > pd_range.max) {
         ESP_LOGE(TAG, "%s source pull-down voltage out of range: %.2f V (expected %.2f-%.2f V)",
                  source_name, v_pd, pd_range.min, pd_range.max);
-        display_printf("%s pull-down out of range\n%.2f V (%.2f-%.2f V)", 
-                      source_name, v_pd, pd_range.min, pd_range.max);
         return false;
     }
 
@@ -202,7 +194,6 @@ bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges
 
     if (pin1 != 0 || pin2 != 0) {
         ESP_LOGE(TAG, "Error: Initial LED levels incorrect. Pin1: %d, Pin2: %d", pin1, pin2);
-        display_printf("LED levels incorrect\nPin1: %d Pin2: %d", pin1, pin2);
         return false;
     }
 
@@ -246,15 +237,11 @@ bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges
 
     ESP_LOGE(TAG, "Invalid current combination:\nPin1: %.2f mA\nPin2: %.2f mA", 
              current_pin1_ma, current_pin2_ma);
-    display_printf("Invalid currents\nPin1: %.2f mA\nPin2: %.2f mA", 
-                  current_pin1_ma, current_pin2_ma);
     return false;
 }
 
 bool execute_test_sequence(const test_operation_t* operations, size_t count, test_operation_result_t* results) {
     // ESP_LOGI(TAG, "Executing test sequence with %zu operations", count);
-    
-    bool all_tests_passed = true;
     
     for (size_t i = 0; i < count; i++) {
         // ESP_LOGI(TAG, "Start of operation %d", i);
@@ -273,7 +260,6 @@ bool execute_test_sequence(const test_operation_t* operations, size_t count, tes
                         ESP_LOGE(TAG, "Power rails disconnected during repeatable operation");
                         results[i].passed = false;
                         results[i].result = actual_result;
-                        all_tests_passed = false;
                         return false;
                     }
                     delay(10);
@@ -282,35 +268,22 @@ bool execute_test_sequence(const test_operation_t* operations, size_t count, tes
             mcp1.digitalWrite(PIN_LED_FAIL, LOW);
         } else {
             result = execute_single_operation(op, &actual_result);
+            if(!results[i].passed) {
+                results[i].result = actual_result;
+            }
+            results[i].passed = result;
             if (!result) {
                 mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
                 mcp1.digitalWrite(PIN_LED_OK, LOW);
-                results[i].passed = false;
-                results[i].result = actual_result;
-                all_tests_passed = false;
                 return false;
             }
-        }
-        
-        // Store test result if still not passed
-        if(!results[i].passed) {
-            results[i].result = actual_result;
-        } else {
-            // ESP_LOGI(TAG, "Skip result write, already passed");
-        }
-
-        results[i].passed = result;
-        
-        if (!result) {
-            all_tests_passed = false;
         }
         
         // Small delay between operations
         delay(1);
     }
-    
-    ESP_LOGI(TAG, "Test sequence completed - %s", all_tests_passed ? "ALL TESTS PASSED" : "SOME TESTS FAILED");
-    return all_tests_passed;
+
+    return true;
 }
 
 // Helper function to map current measurement pin numbers from JSON to actual pins
@@ -625,8 +598,6 @@ bool check_signal_min(ADC_sink_t pin, const range_t& range, int32_t* result) {
     if (value < range.min || value > range.max) {
         ESP_LOGE(TAG, "min on pin %s out of range: %d (expected %d-%d)",
                  get_pin_name(pin), value, range.min, range.max);
-        display_printf("min on %s out of range\n%d (%d-%d)", 
-                      get_pin_name(pin), value, range.min, range.max);
         return false;
     }
     
@@ -654,8 +625,6 @@ bool check_signal_max(ADC_sink_t pin, const range_t& range, int32_t* result) {
     if (value < range.min || value > range.max) {
         ESP_LOGE(TAG, "max on pin %s out of range: %d (expected %d-%d)",
                  get_pin_name(pin), value, range.min, range.max);
-        display_printf("max on %s out of range\n%d (%d-%d)", 
-                      get_pin_name(pin), value, range.min, range.max);
         return false;
     }
     
@@ -685,8 +654,6 @@ bool check_signal_avg(ADC_sink_t pin, const range_t& range, int32_t* result) {
     if (value < range.min || value > range.max) {
         ESP_LOGE(TAG, "avg on pin %s out of range: %d (expected %d-%d)",
                  get_pin_name(pin), value, range.min, range.max);
-        display_printf("avg on %s out of range\n%d (%d-%d)", 
-                      get_pin_name(pin), value, range.min, range.max);
         return false;
     }
     
@@ -716,8 +683,6 @@ bool check_signal_freq(ADC_sink_t pin, const range_t& range, int32_t* result) {
     if (value < range.min || value > range.max) {
         ESP_LOGE(TAG, "freq on pin %s out of range: %.2f (expected %d-%d)",
                  get_pin_name(pin), value, range.min, range.max);
-        display_printf("freq on %s out of range\n%.2f (%d-%d)", 
-                      get_pin_name(pin), value, range.min, range.max);
         return false;
     }
     
@@ -746,8 +711,6 @@ bool check_signal_amplitude(ADC_sink_t pin, const range_t& range, int32_t* resul
     if (amplitude < range.min || amplitude > range.max) {
         ESP_LOGE(TAG, "amplitude on pin %s out of range: %d (expected %d-%d)",
                  get_pin_name(pin), amplitude, range.min, range.max);
-        display_printf("amplitude on %s out of range\n%d (%d-%d)", 
-                      get_pin_name(pin), amplitude, range.min, range.max);
         return false;
     }
     

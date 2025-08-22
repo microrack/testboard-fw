@@ -125,6 +125,8 @@ void loop() {
             // Short delay before retrying
             delay(50);
         }
+
+        display_all_test_results();
     } while (!test_result);
 
     // Step 6.3: Wait for module removal
