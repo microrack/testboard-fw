@@ -448,8 +448,10 @@ void hal_start_signal(source_net_t pin, float freq) {
     signal_frequencies[pin] = phase_increment;
     signal_phase[pin] = 0; // Reset phase
 
-    timerStart(signal_timer);
-    signal_timer_running = true;
+    if (!signal_timer_running) {
+        timerStart(signal_timer);
+        signal_timer_running = true;
+    }
     
     ESP_LOGI(TAG, "Started signal generator on source %d with frequency %f Hz (phase increment: %d)", pin, freq, phase_increment);
 }
@@ -493,6 +495,11 @@ void hal_stop_signal(source_net_t pin) {
 void hal_set_source(source_net_t net, int32_t voltage_mv) {
     // ESP_LOGI(TAG, "Phase: %d", signal_phase[net]);
 
+
+    if (signal_timer_running) {
+        timerStop(signal_timer);
+    }
+
     // Stop signal generator for this source
     hal_stop_signal(net);
     
@@ -522,6 +529,10 @@ void hal_set_source(source_net_t net, int32_t voltage_mv) {
     hal_set_source_direct(net, dac_value);
     
     ESP_LOGI(TAG, "Set source %d to %d mV (%.2f V, DAC value: %d)", net, voltage_mv, voltage, dac_value);
+
+    if(signal_timer_running) {
+        timerStart(signal_timer);
+    }
 }
 
 void hal_clear_console(void) {
