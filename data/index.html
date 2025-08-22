@@ -527,6 +527,7 @@
             'max': { name: 'Check Max', params: ['pin', 'low', 'high'] },
             'avg': { name: 'Check Average', params: ['pin', 'low', 'high'] },
             'freq': { name: 'Check Frequency', params: ['pin', 'low', 'high'] },
+            'amplitude': { name: 'Check Amplitude', params: ['pin', 'low', 'high'] },
             'delay': { name: 'Delay', params: ['timeout_ms'] },
             'reset': { name: 'Reset', params: [] },
             'comment': { name: 'Comment', params: [] }
@@ -940,7 +941,8 @@
                                 || operation.type === 'min'
                                 || operation.type === 'max'
                                 || operation.type === 'avg'
-                                || operation.type === 'freq') {
+                                || operation.type === 'freq'
+                                || operation.type === 'amplitude') {
                                 displayValue = `in ${value}`;
                             }
 

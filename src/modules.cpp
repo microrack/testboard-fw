@@ -325,6 +325,19 @@ bool init_modules_from_fs() {
                 line_str = get_token(line_str, token, sizeof(token));
                 op.arg2 = atoi(token); // High value
                 
+            } else if (strcmp(token, "amplitude") == 0) {
+                op.op = TEST_OP_CHECK_AMPLITUDE;
+                op.repeat = repeat_flag;
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.pin = string_to_voltage_pin(token);
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg1 = atoi(token); // Low value
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg2 = atoi(token); // High value
+                
             } else if (strcmp(token, "delay") == 0) {
                 op.op = TEST_OP_DELAY;
                 op.repeat = repeat_flag;

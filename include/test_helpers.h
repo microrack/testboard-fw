@@ -184,6 +184,7 @@ typedef enum {
     TEST_OP_CHECK_MAX,   // Check maximum signal value
     TEST_OP_CHECK_AVG,   // Check average signal value
     TEST_OP_CHECK_FREQ,  // Check signal frequency
+    TEST_OP_CHECK_AMPLITUDE, // Check signal amplitude (max - min)
     TEST_OP_DELAY        // Delay for specified time in milliseconds
 } test_op_type_t;
 
@@ -244,6 +245,7 @@ bool check_signal_min(ADC_sink_t pin, const range_t& range, int32_t* result = nu
 bool check_signal_max(ADC_sink_t pin, const range_t& range, int32_t* result = nullptr);
 bool check_signal_avg(ADC_sink_t pin, const range_t& range, int32_t* result = nullptr);
 bool check_signal_freq(ADC_sink_t pin, const range_t& range, int32_t* result = nullptr);
+bool check_signal_amplitude(ADC_sink_t pin, const range_t& range, int32_t* result = nullptr);
 
 // Helper functions for ADC mapping
 adc_unit_t adc_sink_to_unit(ADC_sink_t pin);

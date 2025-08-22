@@ -257,6 +257,7 @@ bool execute_test_sequence(const test_operation_t* operations, size_t count, tes
     bool all_tests_passed = true;
     
     for (size_t i = 0; i < count; i++) {
+        // ESP_LOGI(TAG, "Start of operation %d", i);
         const test_operation_t& op = operations[i];
         bool result = false;
         int32_t actual_result = 0;
@@ -281,13 +282,18 @@ bool execute_test_sequence(const test_operation_t* operations, size_t count, tes
             mcp1.digitalWrite(PIN_LED_FAIL, LOW);
         } else {
             result = execute_single_operation(op, &actual_result);
+            if (!result) {
+                mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+                mcp1.digitalWrite(PIN_LED_OK, LOW);
+                results[i].passed = false;
+                results[i].result = actual_result;
+                all_tests_passed = false;
+                return false;
+            }
         }
-
-        // ESP_LOGI(TAG, "Op result: %s", result ? "PASS" : "FAIL");
         
         // Store test result if still not passed
         if(!results[i].passed) {
-            // ESP_LOGI(TAG, "Write result %d", actual_result);
             results[i].result = actual_result;
         } else {
             // ESP_LOGI(TAG, "Skip result write, already passed");
@@ -319,6 +325,7 @@ int map_current_pin(int pin) {
 
 // Helper function to execute a single test operation
 bool execute_single_operation(const test_operation_t& op, int32_t* result) {
+    // ESP_LOGI(TAG, "Start of execute_single_operation: %d", op.op);
     switch (op.op) {
         case TEST_OP_SOURCE: {
             hal_set_source((source_net_t)op.pin, op.arg1);
@@ -414,6 +421,14 @@ bool execute_single_operation(const test_operation_t& op, int32_t* result) {
                 *result = 0; // Initialize result
             }
             return check_signal_freq((ADC_sink_t)op.pin, range, result);
+        }
+        
+        case TEST_OP_CHECK_AMPLITUDE: {
+            range_t range = {op.arg1, op.arg2};
+            if (result) {
+                *result = 0; // Initialize result
+            }
+            return check_signal_amplitude((ADC_sink_t)op.pin, range, result);
         }
         
         case TEST_OP_DELAY: {
@@ -591,8 +606,6 @@ bool start_sigscoper(ADC_sink_t pin, uint32_t sample_freq, size_t buffer_size) {
 
 // Function to check signal minimum value
 bool check_signal_min(ADC_sink_t pin, const range_t& range, int32_t* result) {
-    ESP_LOGI(TAG, "Checking min on pin %s", get_pin_name(pin));
-    
     SigscoperStats stats;
     if (!check_signal_common(pin, &stats)) {
         return false;
@@ -621,9 +634,7 @@ bool check_signal_min(ADC_sink_t pin, const range_t& range, int32_t* result) {
 }
 
 // Function to check signal maximum value
-bool check_signal_max(ADC_sink_t pin, const range_t& range, int32_t* result) {
-    ESP_LOGI(TAG, "Checking max on pin %s", get_pin_name(pin));
-    
+bool check_signal_max(ADC_sink_t pin, const range_t& range, int32_t* result) {    
     SigscoperStats stats;
     if (!check_signal_common(pin, &stats)) {
         return false;
@@ -684,8 +695,6 @@ bool check_signal_avg(ADC_sink_t pin, const range_t& range, int32_t* result) {
 
 // Function to check signal frequency
 bool check_signal_freq(ADC_sink_t pin, const range_t& range, int32_t* result) {
-    ESP_LOGI(TAG, "Checking freq on pin %s", get_pin_name(pin));
-    
     SigscoperStats stats;
     if (!check_signal_common(pin, &stats)) {
         return false;
@@ -709,6 +718,36 @@ bool check_signal_freq(ADC_sink_t pin, const range_t& range, int32_t* result) {
                  get_pin_name(pin), value, range.min, range.max);
         display_printf("freq on %s out of range\n%.2f (%d-%d)", 
                       get_pin_name(pin), value, range.min, range.max);
+        return false;
+    }
+    
+    return true;
+}
+
+// Function to check signal amplitude (max - min)
+bool check_signal_amplitude(ADC_sink_t pin, const range_t& range, int32_t* result) {
+    SigscoperStats stats;
+    if (!check_signal_common(pin, &stats)) {
+        return false;
+    }
+    
+    // Calculate amplitude as max - min
+    int32_t amplitude = hal_adc_raw2mv(stats.max_value, pin) - hal_adc_raw2mv(stats.min_value, pin);
+    
+    // Store result value
+    if (result) {
+        *result = amplitude;
+    }
+    
+    ESP_LOGI(TAG, "amplitude on pin %s: %d (acceptable range: %d-%d)",
+             get_pin_name(pin), amplitude, range.min, range.max);
+    
+    // Check if value is within range
+    if (amplitude < range.min || amplitude > range.max) {
+        ESP_LOGE(TAG, "amplitude on pin %s out of range: %d (expected %d-%d)",
+                 get_pin_name(pin), amplitude, range.min, range.max);
+        display_printf("amplitude on %s out of range\n%d (%d-%d)", 
+                      get_pin_name(pin), amplitude, range.min, range.max);
         return false;
     }
     
