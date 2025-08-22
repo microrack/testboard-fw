@@ -71,6 +71,7 @@ void print_all_test_results() {
                  (op.op == TEST_OP_CHECK_MAX) ? "CHECK_MAX" :
                  (op.op == TEST_OP_CHECK_AVG) ? "CHECK_AVG" :
                  (op.op == TEST_OP_CHECK_FREQ) ? "CHECK_FREQ" :
+                 (op.op == TEST_OP_DELAY) ? "DELAY" :
                  "UNKNOWN",
                  op.pin, op.arg1, op.arg2);
         

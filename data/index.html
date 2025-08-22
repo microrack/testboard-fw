@@ -527,6 +527,7 @@
             'max': { name: 'Check Max', params: ['pin', 'low', 'high'] },
             'avg': { name: 'Check Average', params: ['pin', 'low', 'high'] },
             'freq': { name: 'Check Frequency', params: ['pin', 'low', 'high'] },
+            'delay': { name: 'Delay', params: ['timeout_ms'] },
             'reset': { name: 'Reset', params: [] },
             'comment': { name: 'Comment', params: [] }
         };
@@ -908,6 +909,11 @@
                         // Special handling for sample_freq and buffer_size parameters - use text input
                         if (param === 'sample_freq' || param === 'buffer_size') {
                             return `<input type="text" class="param-input" value="${value}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, ${paramIndex}, this.value)" placeholder="${param}">`;
+                        }
+                        
+                        // Special handling for timeout_ms parameter - always use text input
+                        if (param === 'timeout_ms') {
+                            return `<input type="text" class="param-input" value="${value}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, ${paramIndex}, this.value)" placeholder="timeout (ms)">`;
                         }
                         
                         if (paramOptions[param]) {

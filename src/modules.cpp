@@ -325,6 +325,15 @@ bool init_modules_from_fs() {
                 line_str = get_token(line_str, token, sizeof(token));
                 op.arg2 = atoi(token); // High value
                 
+            } else if (strcmp(token, "delay") == 0) {
+                op.op = TEST_OP_DELAY;
+                op.repeat = repeat_flag;
+                
+                line_str = get_token(line_str, token, sizeof(token));
+                op.arg1 = atoi(token); // Timeout in milliseconds
+                op.pin = 0;  // Not used for delay
+                op.arg2 = 0; // Not used for delay
+                
             } else {
                 ESP_LOGW(TAG, "Unknown operation: %s", token);
                 continue;

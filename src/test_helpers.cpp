@@ -416,6 +416,12 @@ bool execute_single_operation(const test_operation_t& op, int32_t* result) {
             return check_signal_freq((ADC_sink_t)op.pin, range, result);
         }
         
+        case TEST_OP_DELAY: {
+            ESP_LOGI(TAG, "Executing delay operation: %d ms", op.arg1);
+            delay(op.arg1);
+            return true;
+        }
+        
         default:
             ESP_LOGE(TAG, "Unknown test operation type: %d", op.op);
             return false;
