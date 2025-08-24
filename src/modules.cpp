@@ -15,6 +15,9 @@ static size_t modules_count = 0;
 static test_operation_t* operations_buffer = nullptr;
 static size_t operations_buffer_size = 0;
 
+static bool execute_test_sequence(const test_operation_t* operations, size_t count, test_operation_result_t* results);
+static bool execute_single_operation(const test_operation_t& op, int32_t* result);
+
 // Helper function to convert string to source_net_t
 static source_net_t string_to_source(const char* str) {
     if (strcmp(str, "A") == 0) return SOURCE_A;
@@ -399,7 +402,6 @@ bool execute_module_tests(module_info_t* module) {
     // If module has test operations, use declarative approach
     if (module->test_operations && module->test_operations_count > 0) {
         // Get test results array from global storage
-        extern test_operation_result_t* get_global_test_results();
         test_operation_result_t* global_results = get_global_test_results();
         
         if (!global_results) {
@@ -414,4 +416,177 @@ bool execute_module_tests(module_info_t* module) {
     
     ESP_LOGE(TAG, "No test operations for module: %s", module->name);
     return false;
+}
+
+static bool execute_test_sequence(const test_operation_t* operations, size_t count, test_operation_result_t* results) {
+    // ESP_LOGI(TAG, "Executing test sequence with %zu operations", count);
+    
+    for (size_t i = 0; i < count; i++) {
+        // ESP_LOGI(TAG, "Start of operation %d", i);
+        const test_operation_t& op = operations[i];
+        bool result = false;
+        int32_t actual_result = 0;
+        
+        // Start timing
+        
+        
+        // Handle repeatable operations using TEST_RUN_REPEAT logic
+        if (op.repeat) {
+            do {
+                uint32_t start_time = millis();
+                result = execute_single_operation(op, &actual_result);
+                results[i].execution_time_ms = millis() - start_time;
+                if (!result) {
+                    mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+                    mcp1.digitalWrite(PIN_LED_OK, LOW);
+                    if (get_power_rails_state(NULL, NULL, NULL) != POWER_RAILS_ALL) {
+                        ESP_LOGE(TAG, "Power rails disconnected during repeatable operation");
+                        results[i].passed = false;
+                        results[i].result = actual_result;
+                        return false;
+                    }
+                    delay(10);
+                }
+            } while (!result);
+            mcp1.digitalWrite(PIN_LED_FAIL, LOW);
+        } else {
+            uint32_t start_time = millis();
+            result = execute_single_operation(op, &actual_result);
+            results[i].execution_time_ms = millis() - start_time;
+            if(!results[i].passed) {
+                results[i].result = actual_result;
+            }
+            results[i].passed = result;
+            if (!result) {
+                mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+                mcp1.digitalWrite(PIN_LED_OK, LOW);
+                return false;
+            }
+        }
+        
+        // Small delay between operations
+        delay(1);
+    }
+
+    return true;
+}
+
+// Helper function to execute a single test operation
+static bool execute_single_operation(const test_operation_t& op, int32_t* result) {
+    // ESP_LOGI(TAG, "Start of execute_single_operation: %d", op.op);
+    switch (op.op) {
+        case TEST_OP_SOURCE: {
+            hal_set_source((source_net_t)op.pin, op.arg1);
+            return true;
+        }
+        
+        case TEST_OP_SOURCE_SIG: {
+            hal_start_signal((source_net_t)op.pin, (float)op.arg1);
+            return true;
+        }
+        
+        case TEST_OP_IO: {
+            hal_set_io((mcp_io_t)op.pin, (io_state_t)op.arg1);
+            return true;
+        }
+        
+        case TEST_OP_SINK_PD: {
+            // Assuming PIN_SINK_PD_A is the pin for sink pulldown
+            mcp1.pinMode(PIN_SINK_PD_A, OUTPUT);
+            mcp1.digitalWrite(PIN_SINK_PD_A, op.arg1 ? HIGH : LOW);
+            return true;
+        }
+        
+        case TEST_OP_CHECK_CURRENT: {
+            range_t range = {op.arg1, op.arg2};
+            int mapped_pin = map_current_pin(op.pin);
+            const char* rail_name = (mapped_pin == PIN_INA_12V) ? "+12V" : 
+                                   (mapped_pin == PIN_INA_5V) ? "+5V" : "-12V";
+            if (result) {
+                *result = measure_current(mapped_pin);
+                ESP_LOGI(TAG, "Current measurement: %d uA", *result);
+            }
+            return check_current((ina_pin_t)mapped_pin, range, rail_name);
+        }
+        
+        case TEST_OP_CHECK_PIN: {
+            range_t range = {op.arg1, op.arg2};
+            const char* pin_name = (op.pin == ADC_sink_1k_A) ? "A" :
+                                  (op.pin == ADC_sink_1k_B) ? "B" :
+                                  (op.pin == ADC_sink_1k_C) ? "C" :
+                                  (op.pin == ADC_sink_1k_D) ? "D" :
+                                  (op.pin == ADC_sink_1k_E) ? "E" :
+                                  (op.pin == ADC_sink_1k_F) ? "F" :
+                                  (op.pin == ADC_sink_PD_A) ? "pdA" :
+                                  (op.pin == ADC_sink_PD_B) ? "pdB" :
+                                  (op.pin == ADC_sink_PD_C) ? "pdC" :
+                                  (op.pin == ADC_sink_Z_D) ? "zD" :
+                                  (op.pin == ADC_sink_Z_E) ? "zE" :
+                                  (op.pin == ADC_sink_Z_F) ? "zF" : "Unknown";
+            if (result) {
+                // Get actual voltage value for failed test
+                *result = hal_adc_read((ADC_sink_t)op.pin); // Returns value in millivolts
+                // ESP_LOGI(TAG, "Voltage measurement: %d mV", *result);
+            }
+            return test_pin_range((ADC_sink_t)op.pin, range, pin_name);
+        }
+        
+        case TEST_OP_RESET: {
+            return execute_reset_operation();
+        }
+        
+        case TEST_OP_SCOPE: {
+            return start_sigscoper((ADC_sink_t)op.pin, op.arg1, op.arg2);
+        }
+        
+        case TEST_OP_CHECK_MIN: {
+            range_t range = {op.arg1, op.arg2};
+            if (result) {
+                *result = 0; // Initialize result
+            }
+            return check_signal_min((ADC_sink_t)op.pin, range, result);
+        }
+        
+        case TEST_OP_CHECK_MAX: {
+            range_t range = {op.arg1, op.arg2};
+            if (result) {
+                *result = 0; // Initialize result
+            }
+            return check_signal_max((ADC_sink_t)op.pin, range, result);
+        }
+        
+        case TEST_OP_CHECK_AVG: {
+            range_t range = {op.arg1, op.arg2};
+            if (result) {
+                *result = 0; // Initialize result
+            }
+            return check_signal_avg((ADC_sink_t)op.pin, range, result);
+        }
+        
+        case TEST_OP_CHECK_FREQ: {
+            range_t range = {op.arg1, op.arg2};
+            if (result) {
+                *result = 0; // Initialize result
+            }
+            return check_signal_freq((ADC_sink_t)op.pin, range, result);
+        }
+        
+        case TEST_OP_CHECK_AMPLITUDE: {
+            range_t range = {op.arg1, op.arg2};
+            if (result) {
+                *result = 0; // Initialize result
+            }
+            return check_signal_amplitude((ADC_sink_t)op.pin, range, result);
+        }
+        
+        case TEST_OP_DELAY: {
+            ESP_LOGI(TAG, "Executing delay operation: %d ms", op.arg1);
+            delay(op.arg1);
+            return true;
+        }
+        
+        default:
+            ESP_LOGE(TAG, "Unknown test operation type: %d", op.op);
+            return false;
+    }
 }

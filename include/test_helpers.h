@@ -170,60 +170,7 @@ typedef struct {
     range_t inactive;
 } mode_current_ranges_t;
 
-// Test operation types
-typedef enum {
-    TEST_OP_SOURCE,      // Set voltage source
-    TEST_OP_SOURCE_SIG,  // Start signal generator
-    TEST_OP_IO,          // Set IO pin state
-    TEST_OP_SINK_PD,     // Set sink pulldown
-    TEST_OP_CHECK_CURRENT, // Check current consumption
-    TEST_OP_CHECK_PIN,   // Check pin voltage
-    TEST_OP_RESET,       // Reset all pins to safe state
-    TEST_OP_SCOPE,       // Start Sigscoper in FREE mode
-    TEST_OP_CHECK_MIN,   // Check minimum signal value
-    TEST_OP_CHECK_MAX,   // Check maximum signal value
-    TEST_OP_CHECK_AVG,   // Check average signal value
-    TEST_OP_CHECK_FREQ,  // Check signal frequency
-    TEST_OP_CHECK_AMPLITUDE, // Check signal amplitude (max - min)
-    TEST_OP_DELAY        // Delay for specified time in milliseconds
-} test_op_type_t;
-
-// Test operation structure
-typedef struct {
-    bool repeat;           // Use TEST_RUN_REPEAT if true, TEST_RUN if false
-    test_op_type_t op;    // Operation type
-    int pin;              // Pin number
-    int32_t arg1;         // Voltage for SOURCE, state for IO, 0/1 for SINK_PD, low value for checks
-    int32_t arg2;         // High value for checks (only used for CHECK_CURRENT and CHECK_PIN)
-} test_operation_t;
-
-// Test result structure
-typedef struct {
-    bool passed;          // true if test passed, false if failed
-    int32_t result;       // actual value obtained from the operation (if test failed)
-    uint32_t execution_time_ms; // execution time in milliseconds
-} test_operation_result_t;
-
 bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges_t& ranges, int* output_mode); 
-
-/**
- * @brief Execute a sequence of test operations
- * 
- * @param operations Array of test operations to execute
- * @param count Number of operations in the array
- * @param results Array to store test results (must be pre-allocated with size 'count')
- * @return true if all tests passed, false otherwise
- */
-bool execute_test_sequence(const test_operation_t* operations, size_t count, test_operation_result_t* results);
-
-/**
- * @brief Execute a single test operation
- * 
- * @param op The test operation to execute
- * @param result Pointer to store the actual result value (for failed tests)
- * @return true if the operation succeeded, false otherwise
- */
-bool execute_single_operation(const test_operation_t& op, int32_t* result = nullptr);
 
 /**
  * @brief Execute reset operation - set all pins to safe state
