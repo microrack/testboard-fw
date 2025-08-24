@@ -8,9 +8,19 @@
 #include <DAC8552.h>
 #include <esp_log.h>
 
+// Micro_MCP23X17 class - extended MCP23X17 with bulk mode and pullup control
+class Micro_MCP23X17 : public Adafruit_MCP23X17 {
+public:
+    // Bulk write pin modes for a port
+    void writeMode(uint8_t value, uint8_t port);
+    
+    // Bulk write pullup configuration for a port
+    void writePullup(uint8_t value, uint8_t port);
+};
+
 // Global objects
 extern SPIClass SPI_DAC;
-extern Adafruit_MCP23X17 mcp0;  // addr 0x20
+extern Micro_MCP23X17 mcp0;  // addr 0x20
 extern Adafruit_MCP23X17 mcp1;  // addr 0x21
 
 // Current measurement functions
@@ -57,6 +67,7 @@ typedef enum {
 
 // IO control functions
 void hal_set_io(mcp_io_t io_pin, io_state_t state);
+void hal_reset_io();
 
 // External objects
 extern DAC8552 dac1;

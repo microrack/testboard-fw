@@ -42,6 +42,7 @@ void reset_all_test_results() {
     for (size_t j = 0; j < current_module->test_operations_count; j++) {
         global_test_results[j].passed = false;
         global_test_results[j].result = 0;
+        global_test_results[j].execution_time_ms = 0;
     }
 }
 
@@ -77,9 +78,10 @@ void print_all_test_results() {
                  "UNKNOWN",
                  op.pin, op.arg1, op.arg2);
         
-        ESP_LOGI(TAG, "    Flag: %s, Result: %ld", 
+        ESP_LOGI(TAG, "    Flag: %s, Result: %ld, Time: %lu ms", 
                  res.passed ? "TRUE" : "FALSE", 
-                 res.result);
+                 res.result,
+                 res.execution_time_ms);
     }
     ESP_LOGI(TAG, "=== END TEST RESULTS ===");
 }
@@ -163,7 +165,7 @@ void save_all_test_results() {
     // Write results for each operation
     for (size_t j = 0; j < current_module->test_operations_count; j++) {
         const test_operation_result_t& res = global_test_results[j];
-        file.printf("%s %ld\n", res.passed ? "true" : "false", res.result);
+        file.printf("%s %ld %lu\n", res.passed ? "true" : "false", res.result, res.execution_time_ms);
     }
     
     file.close();

@@ -201,6 +201,7 @@ typedef struct {
 typedef struct {
     bool passed;          // true if test passed, false if failed
     int32_t result;       // actual value obtained from the operation (if test failed)
+    uint32_t execution_time_ms; // execution time in milliseconds
 } test_operation_result_t;
 
 bool test_mode(const int led_pin1, const int led_pin2, const mode_current_ranges_t& ranges, int* output_mode); 

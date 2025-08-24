@@ -249,10 +249,15 @@ bool execute_test_sequence(const test_operation_t* operations, size_t count, tes
         bool result = false;
         int32_t actual_result = 0;
         
+        // Start timing
+        
+        
         // Handle repeatable operations using TEST_RUN_REPEAT logic
         if (op.repeat) {
             do {
+                uint32_t start_time = millis();
                 result = execute_single_operation(op, &actual_result);
+                results[i].execution_time_ms = millis() - start_time;
                 if (!result) {
                     mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
                     mcp1.digitalWrite(PIN_LED_OK, LOW);
@@ -267,7 +272,9 @@ bool execute_test_sequence(const test_operation_t* operations, size_t count, tes
             } while (!result);
             mcp1.digitalWrite(PIN_LED_FAIL, LOW);
         } else {
+            uint32_t start_time = millis();
             result = execute_single_operation(op, &actual_result);
+            results[i].execution_time_ms = millis() - start_time;
             if(!results[i].passed) {
                 results[i].result = actual_result;
             }
@@ -419,10 +426,8 @@ bool execute_single_operation(const test_operation_t& op, int32_t* result) {
 bool execute_reset_operation() {
     ESP_LOGI(TAG, "Executing reset operation - setting all pins to safe state");
     
-    // 1. Set all IO pins to HiZ (input mode)
-    for (int pin = 0; pin <= 15; pin++) {
-        hal_set_io((mcp_io_t)pin, IO_INPUT);
-    }
+    // 1. Reset all IO pins to HiZ (input mode) using bulk operation
+    hal_reset_io();
     
     // 2. Set all voltage sources to 0V
     hal_set_source(SOURCE_A, 0);

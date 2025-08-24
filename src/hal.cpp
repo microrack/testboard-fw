@@ -11,7 +11,7 @@ static const char* TAG = "hal";
 SPIClass SPI_DAC(HSPI);
 DAC8552 dac1(PIN_CS1, &SPI_DAC);
 DAC8552 dac2(PIN_CS2, &SPI_DAC);
-Adafruit_MCP23X17 mcp0;  // addr 0x20
+Micro_MCP23X17 mcp0;  // addr 0x20
 Adafruit_MCP23X17 mcp1;  // addr 0x21
 
 // Signal generator arrays
@@ -553,4 +553,29 @@ void hal_set_io(mcp_io_t io_pin, io_state_t state) {
         mcp0.pinMode(io_pin, OUTPUT);
         mcp0.digitalWrite(io_pin, LOW);
     }
+}
+
+void hal_reset_io() {
+    ESP_LOGD(TAG, "Resetting all IO pins to safe state");
+    
+    // Set all IO pins to HiZ (input mode) using bulk operation
+    // Port A (pins 0-7): all inputs
+    mcp0.writeMode(0xFF, 0);
+    // Port B (pins 8-15): all inputs  
+    mcp0.writeMode(0xFF, 1);
+    
+    ESP_LOGD(TAG, "IO reset completed");
+}
+
+// Micro_MCP23X17 implementation
+void Micro_MCP23X17::writeMode(uint8_t value, uint8_t port) {
+    Adafruit_BusIO_Register IODIR(i2c_dev, spi_dev, MCP23XXX_SPIREG,
+                                  getRegister(MCP23XXX_IODIR, port));
+    IODIR.write(value);
+}
+
+void Micro_MCP23X17::writePullup(uint8_t value, uint8_t port) {
+    Adafruit_BusIO_Register GPPU(i2c_dev, spi_dev, MCP23XXX_SPIREG,
+                                 getRegister(MCP23XXX_GPPU, port));
+    GPPU.write(value);
 } 

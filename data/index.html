@@ -649,7 +649,8 @@
                 if (parts.length >= 2) {
                     const passed = parts[0] === 'true';
                     const result = parseInt(parts[1]) || 0;
-                    results.push({ passed, result });
+                    const executionTime = parts.length >= 3 ? parseInt(parts[2]) || 0 : 0;
+                    results.push({ passed, result, executionTime });
                 }
             }
 
@@ -1295,7 +1296,7 @@
             const result = testResults.results[realOperationIndex];
             const resultClass = result.passed ? 'passed' : 'failed';
             
-            return `<span class="test-result ${resultClass}">${result.result}</span>`;
+            return `<span class="test-result ${resultClass}">${result.result} (${result.executionTime}ms)</span>`;
         }
 
         function toggleAliases() {
