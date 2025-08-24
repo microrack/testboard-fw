@@ -5,54 +5,6 @@
 #include "sigscoper.h"
 
 /**
- * @brief Macro to execute a function and return false on failure
- * 
- * This macro executes the provided function and if it returns false,
- * returns false from the caller function.
- * 
- * @param func The function to execute
- */
-#define TEST_RUN(func) do { \
-    if (!func) { \
-        return false; \
-    } \
-} while(0)
-
-/**
- * @brief Macro to execute a function and retry on failure
- * 
- * This macro executes the provided function and if it returns false,
- * turns on the FAIL LED and retries the function until either:
- * 1. The function returns true (returns TEST_NEED_REPEAT if this was a retry)
- * 2. The power rails state is no longer POWER_RAILS_ALL (returns TEST_INTERRUPTED)
- * 
- * @param func The function to execute
- */
-#define TEST_RUN_REPEAT(func) do { \
-    if (!func) { \
-        while (!func) { \
-            mcp1.digitalWrite(PIN_LED_FAIL, HIGH); \
-            mcp1.digitalWrite(PIN_LED_OK, LOW); \
-            if (get_power_rails_state(NULL, NULL, NULL) != POWER_RAILS_ALL) { \
-                return false; \
-            } \
-            delay(10); \
-        } \
-        mcp1.digitalWrite(PIN_LED_FAIL, LOW); \
-        return false; \
-    } \
-} while(0)
-
-/**
- * @brief Test result states
- */
-typedef enum {
-    TEST_OK,           // Test passed successfully
-    TEST_NEED_REPEAT,  // Test needs to be repeated
-    TEST_INTERRUPTED   // Test was interrupted (e.g. power rails disconnected)
-} test_result_t;
-
-/**
  * @brief Power rail connection states
  */
 typedef enum {
@@ -132,7 +84,7 @@ typedef enum {
  * @param rail_name Name of the rail for display purposes
  * @return true if current measurement is within acceptable range, false otherwise
  */
-bool check_current(ina_pin_t pin, const range_t& range, const char* rail_name);
+bool check_current(ina_pin_t pin, const range_t& range, const char* rail_name, int32_t* result = nullptr);
 
 /**
  * @brief Checks if the initial current consumption is within acceptable ranges
@@ -150,7 +102,7 @@ bool check_initial_current_consumption(const power_rails_current_ranges_t& range
  * @param pin_name The name of the pin for display purposes
  * @return true if the voltage is within range, false otherwise
  */
-bool test_pin_range(ADC_sink_t pin, const range_t& range, const char* pin_name);
+bool test_pin_range(ADC_sink_t pin, const range_t& range, const char* pin_name, int32_t* result = nullptr);
 
 /**
  * @brief Test a pin with pull-down functionality

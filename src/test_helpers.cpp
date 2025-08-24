@@ -35,7 +35,7 @@ power_rails_state_t get_power_rails_state(bool* p12v_state, bool* p5v_state, boo
 }
 
 bool perform_startup_sequence() {
-    ESP_LOGI(TAG, "Starting startup sequence");
+    ESP_LOGD(TAG, "Starting startup sequence");
     
     // Step 1: Initialize HAL
     hal_init();
@@ -85,31 +85,27 @@ power_rails_state_t wait_for_module_removal(bool& p12v_ok, bool& p5v_ok, bool& m
     return rails_state;
 }
 
-bool check_current(ina_pin_t pin, const range_t& range, const char* rail_name) {
-    ESP_LOGI(TAG, "Checking current on %s rail", rail_name);
+bool check_current(ina_pin_t pin, const range_t& range, const char* rail_name, int32_t* result) {
+    ESP_LOGD(TAG, "Checking current on %s rail", rail_name);
 
     // Measure current
     int32_t current_ua = measure_current(pin);
     
-    // Convert to milliamps for comparison
-    int32_t current_ma = current_ua / 1000;
-    
-    ESP_LOGI(TAG, "%s current: %d mA (acceptable range: %d-%d uA)",
-             rail_name, current_ma, range.min, range.max);
-    
     // Check if current is within acceptable range
     bool current_ok = (current_ua >= range.min && current_ua <= range.max);
-    
-    if (!current_ok) {
-        ESP_LOGE(TAG, "%s current out of range: %d uA (expected %d-%d uA)",
-                 rail_name, current_ua, range.min, range.max);
+
+    if (result) {
+        *result = current_ua;
     }
+
+    ESP_LOGI(TAG, "%s current: %d uA %s (acceptable range: %d-%d uA)",
+             rail_name, current_ua, current_ok ? "OK" : "OUT OF RANGE", range.min, range.max);
     
     return current_ok;
 }
 
 bool check_initial_current_consumption(const power_rails_current_ranges_t& ranges) {
-    ESP_LOGI(TAG, "Checking initial current consumption on all rails");
+    ESP_LOGD(TAG, "Checking initial current consumption on all rails");
     
     bool p12v_ok = check_current(INA_PIN_12V, ranges.p12v, "+12V");
     bool m12v_ok = check_current(INA_PIN_M12V, ranges.m12v, "-12V");
@@ -118,29 +114,28 @@ bool check_initial_current_consumption(const power_rails_current_ranges_t& range
     return p12v_ok && m12v_ok && p5v_ok;
 }
 
-bool test_pin_range(ADC_sink_t pin, const range_t& range, const char* pin_name) {
-    ESP_LOGI(TAG, "Testing %s", pin_name);
+bool test_pin_range(ADC_sink_t pin, const range_t& range, const char* pin_name, int32_t* result) {
+    ESP_LOGD(TAG, "Testing %s", pin_name);
 
     // Measure voltage for the pin
     int32_t voltage_mv = hal_adc_read(pin);
 
-    ESP_LOGI(TAG, "%s voltage: %d mV (acceptable range: %d-%d mV)",
-             pin_name, voltage_mv, range.min, range.max);
+    bool voltage_ok = (voltage_mv >= range.min && voltage_mv <= range.max);
 
-    // Check voltage range
-    if (voltage_mv < range.min || voltage_mv > range.max) {
-        ESP_LOGE(TAG, "%s voltage out of range: %d mV (expected %d-%d mV)",
-                 pin_name, voltage_mv, range.min, range.max);
-        return false;
+    if (result) {
+        *result = voltage_mv;
     }
 
-    return true;
+    ESP_LOGI(TAG, "%s voltage: %d mV %s (acceptable range: %d-%d mV)",
+             pin_name, voltage_mv, voltage_ok ? "OK" : "OUT OF RANGE", range.min, range.max);
+
+    return voltage_ok;
 }
 
 bool test_pin_pd(const voltage_source_t& source, 
                 const range_t& hiz_range, const range_t& pd_range,
                 const char* source_name) {
-    ESP_LOGI(TAG, "Testing %s source", source_name);
+    ESP_LOGD(TAG, "Testing %s source", source_name);
 
     // Configure PD sink pin as output
     mcp1.pinMode(source.pd_pin, OUTPUT);
@@ -251,7 +246,7 @@ int map_current_pin(int pin) {
 }
 
 bool execute_reset_operation() {
-    ESP_LOGI(TAG, "Executing reset operation - setting all pins to safe state");
+    ESP_LOGD(TAG, "Executing reset operation - setting all pins to safe state");
     
     // 1. Reset all IO pins to HiZ (input mode) using bulk operation
     hal_reset_io();
@@ -368,7 +363,7 @@ static bool check_signal_common(ADC_sink_t pin, SigscoperStats* stats) {
 
 // Function to start Sigscoper in FREE mode
 bool start_sigscoper(ADC_sink_t pin, uint32_t sample_freq, size_t buffer_size) {
-    ESP_LOGI(TAG, "Starting Sigscoper on pin %s, freq: %d Hz, buffer: %d", 
+    ESP_LOGD(TAG, "Starting Sigscoper on pin %s, freq: %d Hz, buffer: %d", 
              get_pin_name(pin), sample_freq, buffer_size);
     
     // Initialize Sigscoper if not already done
@@ -417,23 +412,18 @@ bool check_signal_min(ADC_sink_t pin, const range_t& range, int32_t* result) {
     }
     
     int32_t value = hal_adc_raw2mv(stats.min_value, pin);
+
+    bool value_ok = (value >= range.min && value <= range.max);
     
     // Store result value
     if (result) {
         *result = value;
     }
     
-    ESP_LOGI(TAG, "min on pin %s: %d (acceptable range: %d-%d)",
-             get_pin_name(pin), value, range.min, range.max);
+    ESP_LOGI(TAG, "min on pin %s: %d %s (acceptable range: %d-%d)",
+             get_pin_name(pin), value, value_ok ? "OK" : "OUT OF RANGE", range.min, range.max);
     
-    // Check if value is within range
-    if (value < range.min || value > range.max) {
-        ESP_LOGE(TAG, "min on pin %s out of range: %d (expected %d-%d)",
-                 get_pin_name(pin), value, range.min, range.max);
-        return false;
-    }
-    
-    return true;
+    return value_ok;
 }
 
 // Function to check signal maximum value
@@ -444,23 +434,18 @@ bool check_signal_max(ADC_sink_t pin, const range_t& range, int32_t* result) {
     }
     
     int32_t value = hal_adc_raw2mv(stats.max_value, pin);
+
+    bool value_ok = (value >= range.min && value <= range.max);
     
     // Store result value
     if (result) {
         *result = value;
     }
     
-    ESP_LOGI(TAG, "max on pin %s: %d (acceptable range: %d-%d)",
-             get_pin_name(pin), value, range.min, range.max);
+    ESP_LOGI(TAG, "max on pin %s: %d %s (acceptable range: %d-%d)",
+             get_pin_name(pin), value, value_ok ? "OK" : "OUT OF RANGE", range.min, range.max);
     
-    // Check if value is within range
-    if (value < range.min || value > range.max) {
-        ESP_LOGE(TAG, "max on pin %s out of range: %d (expected %d-%d)",
-                 get_pin_name(pin), value, range.min, range.max);
-        return false;
-    }
-    
-    return true;
+    return value_ok;
 }
 
 // Function to check signal average value
@@ -473,23 +458,18 @@ bool check_signal_avg(ADC_sink_t pin, const range_t& range, int32_t* result) {
     }
     
     int32_t value = hal_adc_raw2mv(stats.avg_value, pin);
+
+    bool value_ok = (value >= range.min && value <= range.max);
     
     // Store result value
     if (result) {
         *result = value;
     }
     
-    ESP_LOGI(TAG, "avg on pin %s: %d (acceptable range: %d-%d)",
-             get_pin_name(pin), value, range.min, range.max);
+    ESP_LOGI(TAG, "avg on pin %s: %d %s (acceptable range: %d-%d)",
+             get_pin_name(pin), value, value_ok ? "OK" : "OUT OF RANGE", range.min, range.max);
     
-    // Check if value is within range
-    if (value < range.min || value > range.max) {
-        ESP_LOGE(TAG, "avg on pin %s out of range: %d (expected %d-%d)",
-                 get_pin_name(pin), value, range.min, range.max);
-        return false;
-    }
-    
-    return true;
+    return value_ok;
 }
 
 // Function to check signal frequency
@@ -507,18 +487,13 @@ bool check_signal_freq(ADC_sink_t pin, const range_t& range, int32_t* result) {
     if (result) {
         *result = (int32_t)value;
     }
+
+    bool value_ok = (value >= range.min && value <= range.max);
     
-    ESP_LOGI(TAG, "freq on pin %s: %.2f (acceptable range: %d-%d)",
-             get_pin_name(pin), value, range.min, range.max);
+    ESP_LOGI(TAG, "freq on pin %s: %.2f %s (acceptable range: %d-%d)",
+             get_pin_name(pin), value, value_ok ? "OK" : "OUT OF RANGE", range.min, range.max);
     
-    // Check if value is within range
-    if (value < range.min || value > range.max) {
-        ESP_LOGE(TAG, "freq on pin %s out of range: %.2f (expected %d-%d)",
-                 get_pin_name(pin), value, range.min, range.max);
-        return false;
-    }
-    
-    return true;
+    return value_ok;
 }
 
 // Function to check signal amplitude (max - min)
@@ -535,16 +510,11 @@ bool check_signal_amplitude(ADC_sink_t pin, const range_t& range, int32_t* resul
     if (result) {
         *result = amplitude;
     }
+
+    bool amplitude_ok = (amplitude >= range.min && amplitude <= range.max);
     
-    ESP_LOGI(TAG, "amplitude on pin %s: %d (acceptable range: %d-%d)",
-             get_pin_name(pin), amplitude, range.min, range.max);
+    ESP_LOGI(TAG, "amplitude on pin %s: %d %s (acceptable range: %d-%d)",
+             get_pin_name(pin), amplitude, amplitude_ok ? "OK" : "OUT OF RANGE", range.min, range.max);
     
-    // Check if value is within range
-    if (amplitude < range.min || amplitude > range.max) {
-        ESP_LOGE(TAG, "amplitude on pin %s out of range: %d (expected %d-%d)",
-                 get_pin_name(pin), amplitude, range.min, range.max);
-        return false;
-    }
-    
-    return true;
+    return amplitude_ok;
 } 

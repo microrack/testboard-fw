@@ -20,7 +20,7 @@ bool display_init() {
     display.setRotation(0);
     display_clear();
 
-    ESP_LOGI(TAG, "Display initialized successfully");
+    ESP_LOGD(TAG, "Display initialized successfully");
     return true;
 }
 

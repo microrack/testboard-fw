@@ -42,12 +42,6 @@ void setup() {
 
     ESP_LOGI(TAG, "Hello, Microrack!");
 
-    // Initialize modules from filesystem
-    if (!init_modules_from_fs()) {
-        ESP_LOGE(TAG, "Failed to initialize modules from filesystem");
-        for(;;); // Don't proceed, loop forever
-    }
-
     // Perform startup sequence
     if (!perform_startup_sequence()) {
         ESP_LOGE(TAG, "Startup sequence failed");
@@ -97,7 +91,7 @@ void loop() {
     // Disable WiFi before testing
     disable_wifi();
     
-    ESP_LOGI(TAG, "Module detected: %s", module->name);
+    ESP_LOGD(TAG, "Module detected: %s", module->name);
     display_printf("Module: %s", module->name);
 
     mcp1.digitalWrite(PIN_LED_FAIL, LOW);
@@ -112,7 +106,6 @@ void loop() {
             display_printf("Module OK");
         } else {
             // Test failed
-            ESP_LOGE(TAG, "Test failed, retrying...");
             mcp1.digitalWrite(PIN_LED_OK, LOW);
             mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
             

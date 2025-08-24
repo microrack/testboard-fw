@@ -78,7 +78,7 @@ static const char* get_token(const char* str, char* token, size_t max_len) {
 }
 
 bool init_modules_from_fs() {
-    ESP_LOGI(TAG, "Initializing modules from filesystem");
+    ESP_LOGD(TAG, "Initializing modules from filesystem");
     
     if (!LittleFS.begin(true)) {
         ESP_LOGE(TAG, "Failed to mount LittleFS");
@@ -111,7 +111,7 @@ bool init_modules_from_fs() {
         }
     }
     
-    ESP_LOGI(TAG, "Found %zu modules with %zu total operations", module_count, total_operations);
+    ESP_LOGD(TAG, "Found %zu modules with %zu total operations", module_count, total_operations);
     
     // Allocate memory
     if (operations_buffer) {
@@ -168,7 +168,7 @@ bool init_modules_from_fs() {
             current_module->test_results = nullptr; // Will be allocated when needed
             
             module_index++;
-            ESP_LOGI(TAG, "Parsing module: %s (ID: %d)", name, current_module->id);
+            ESP_LOGD(TAG, "Parsing module: %s (ID: %d)", name, current_module->id);
             
         } else if (current_module && line.length() > 0) {
             // Parse operation line
@@ -397,7 +397,7 @@ bool execute_module_tests(module_info_t* module) {
         return false;
     }
     
-    // ESP_LOGI(TAG, "Executing tests for module: %s", module->name);
+    ESP_LOGI(TAG, "=== Executing tests for module: %s ===", module->name);
     
     // If module has test operations, use declarative approach
     if (module->test_operations && module->test_operations_count > 0) {
@@ -410,6 +410,8 @@ bool execute_module_tests(module_info_t* module) {
         }
         
         bool success = execute_test_sequence(module->test_operations, module->test_operations_count, global_results);
+
+        ESP_LOGI(TAG, "=== Test %s results for module: %s ===", success ? "PASSED" : "FAILED", module->name);
         
         return success;
     }
@@ -419,16 +421,13 @@ bool execute_module_tests(module_info_t* module) {
 }
 
 static bool execute_test_sequence(const test_operation_t* operations, size_t count, test_operation_result_t* results) {
-    // ESP_LOGI(TAG, "Executing test sequence with %zu operations", count);
+    ESP_LOGD(TAG, "Executing test sequence with %zu operations", count);
     
     for (size_t i = 0; i < count; i++) {
-        // ESP_LOGI(TAG, "Start of operation %d", i);
+        ESP_LOGD(TAG, "Start of operation %d", i);
         const test_operation_t& op = operations[i];
         bool result = false;
         int32_t actual_result = 0;
-        
-        // Start timing
-        
         
         // Handle repeatable operations using TEST_RUN_REPEAT logic
         if (op.repeat) {
@@ -436,13 +435,13 @@ static bool execute_test_sequence(const test_operation_t* operations, size_t cou
                 uint32_t start_time = millis();
                 result = execute_single_operation(op, &actual_result);
                 results[i].execution_time_ms = millis() - start_time;
+                if(!results[i].passed) {
+                    results[i].passed = result;
+                    results[i].result = actual_result;
+                }
                 if (!result) {
-                    mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-                    mcp1.digitalWrite(PIN_LED_OK, LOW);
                     if (get_power_rails_state(NULL, NULL, NULL) != POWER_RAILS_ALL) {
-                        ESP_LOGE(TAG, "Power rails disconnected during repeatable operation");
-                        results[i].passed = false;
-                        results[i].result = actual_result;
+                        ESP_LOGD(TAG, "Power rails disconnected during repeatable operation");
                         return false;
                     }
                     delay(10);
@@ -454,12 +453,10 @@ static bool execute_test_sequence(const test_operation_t* operations, size_t cou
             result = execute_single_operation(op, &actual_result);
             results[i].execution_time_ms = millis() - start_time;
             if(!results[i].passed) {
+                results[i].passed = result;
                 results[i].result = actual_result;
             }
-            results[i].passed = result;
             if (!result) {
-                mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-                mcp1.digitalWrite(PIN_LED_OK, LOW);
                 return false;
             }
         }
@@ -476,22 +473,26 @@ static bool execute_single_operation(const test_operation_t& op, int32_t* result
     // ESP_LOGI(TAG, "Start of execute_single_operation: %d", op.op);
     switch (op.op) {
         case TEST_OP_SOURCE: {
+            ESP_LOGI(TAG, "Setting source %d to %d mV", op.pin, op.arg1);
             hal_set_source((source_net_t)op.pin, op.arg1);
             return true;
         }
         
         case TEST_OP_SOURCE_SIG: {
+            ESP_LOGI(TAG, "Starting signal generator on source %d with frequency %d Hz", op.pin, op.arg1);
             hal_start_signal((source_net_t)op.pin, (float)op.arg1);
             return true;
         }
         
         case TEST_OP_IO: {
+            ESP_LOGI(TAG, "Setting IO pin %d to %d", op.pin, op.arg1);
             hal_set_io((mcp_io_t)op.pin, (io_state_t)op.arg1);
             return true;
         }
         
         case TEST_OP_SINK_PD: {
             // Assuming PIN_SINK_PD_A is the pin for sink pulldown
+            ESP_LOGI(TAG, "Setting sink pulldown on pin %d to %d", op.pin, op.arg1);
             mcp1.pinMode(PIN_SINK_PD_A, OUTPUT);
             mcp1.digitalWrite(PIN_SINK_PD_A, op.arg1 ? HIGH : LOW);
             return true;
@@ -502,11 +503,7 @@ static bool execute_single_operation(const test_operation_t& op, int32_t* result
             int mapped_pin = map_current_pin(op.pin);
             const char* rail_name = (mapped_pin == PIN_INA_12V) ? "+12V" : 
                                    (mapped_pin == PIN_INA_5V) ? "+5V" : "-12V";
-            if (result) {
-                *result = measure_current(mapped_pin);
-                ESP_LOGI(TAG, "Current measurement: %d uA", *result);
-            }
-            return check_current((ina_pin_t)mapped_pin, range, rail_name);
+            return check_current((ina_pin_t)mapped_pin, range, rail_name, result);
         }
         
         case TEST_OP_CHECK_PIN: {
@@ -523,19 +520,16 @@ static bool execute_single_operation(const test_operation_t& op, int32_t* result
                                   (op.pin == ADC_sink_Z_D) ? "zD" :
                                   (op.pin == ADC_sink_Z_E) ? "zE" :
                                   (op.pin == ADC_sink_Z_F) ? "zF" : "Unknown";
-            if (result) {
-                // Get actual voltage value for failed test
-                *result = hal_adc_read((ADC_sink_t)op.pin); // Returns value in millivolts
-                // ESP_LOGI(TAG, "Voltage measurement: %d mV", *result);
-            }
-            return test_pin_range((ADC_sink_t)op.pin, range, pin_name);
+            return test_pin_range((ADC_sink_t)op.pin, range, pin_name, result);
         }
         
         case TEST_OP_RESET: {
+            ESP_LOGI(TAG, "Executing reset operation");
             return execute_reset_operation();
         }
         
         case TEST_OP_SCOPE: {
+            ESP_LOGI(TAG, "Starting Sigscoper on pin %d with frequency %d and buffer size %d", op.pin, op.arg1, op.arg2);
             return start_sigscoper((ADC_sink_t)op.pin, op.arg1, op.arg2);
         }
         

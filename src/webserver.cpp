@@ -36,7 +36,7 @@ bool connect_to_wifi();
 
 // Web server task function
 void webserver_task(void* parameter) {
-    ESP_LOGI(TAG, "Web server task started");
+    ESP_LOGD(TAG, "Web server task started");
     
     while (true) {
         // Check if WiFi is enabled
@@ -49,7 +49,7 @@ void webserver_task(void* parameter) {
 }
 
 bool init_webserver() {
-    ESP_LOGI(TAG, "Initializing web server");
+    ESP_LOGD(TAG, "Initializing web server");
     
     // Load HTML content from filesystem
     File htmlFile = LittleFS.open("/index.html", "r");
@@ -83,7 +83,7 @@ bool init_webserver() {
         return false;
     }
 
-    ESP_LOGI(TAG, "Web server task created successfully");
+    ESP_LOGD(TAG, "Web server task created successfully");
 
     return true;
 }
@@ -99,14 +99,14 @@ void enable_wifi() {
 
     // Start server
     server.begin();
-    ESP_LOGI(TAG, "Web server started");
+    ESP_LOGD(TAG, "Web server started");
     
     // Signal that WiFi is enabled
     wifi_enabled = true;
 }
 
 void disable_wifi() {
-    // ESP_LOGI(TAG, "Disabling WiFi");
+    ESP_LOGI(TAG, "Disabling WiFi");
     
     // Signal that WiFi is disabled
     wifi_enabled = false;

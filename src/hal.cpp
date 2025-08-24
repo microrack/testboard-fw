@@ -110,7 +110,7 @@ void hal_init() {
     delay(1000);  // Small delay for startup
 
     // Initialize ESP logging
-    esp_log_level_set("*", ESP_LOG_DEBUG);
+    esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set("hal", ESP_LOG_INFO);  // Set log level for hal tag
 
     // Initialize signal generator arrays
@@ -149,7 +149,7 @@ void hal_init() {
     mcp1.digitalWrite(PIN_LED_OK, HIGH);
     mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
 
-    ESP_LOGI(TAG, "Hardware initialization complete");
+    ESP_LOGD(TAG, "Hardware initialization complete");
 }
 
 void dac_init() {
@@ -453,7 +453,7 @@ void hal_start_signal(source_net_t pin, float freq) {
         signal_timer_running = true;
     }
     
-    ESP_LOGI(TAG, "Started signal generator on source %d with frequency %f Hz (phase increment: %d)", pin, freq, phase_increment);
+    ESP_LOGD(TAG, "Signal generator on source %d started with frequency %f Hz (phase increment: %d)", pin, freq, phase_increment);
 }
 
 void hal_stop_signal(source_net_t pin) {
@@ -489,11 +489,11 @@ void hal_stop_signal(source_net_t pin) {
         }
     }
 
-    // ESP_LOGI(TAG, "Stopped signal generator on source %d", pin);
+    ESP_LOGD(TAG, "Stopped signal generator on source %d", pin);
 }
 
 void hal_set_source(source_net_t net, int32_t voltage_mv) {
-    // ESP_LOGI(TAG, "Phase: %d", signal_phase[net]);
+    ESP_LOGD(TAG, "Phase: %d", signal_phase[net]);
 
 
     if (signal_timer_running) {
@@ -504,7 +504,7 @@ void hal_set_source(source_net_t net, int32_t voltage_mv) {
     hal_stop_signal(net);
     
     // for some reason, fall without this logi
-    // ESP_LOGI(TAG, "signal stopped");
+    ESP_LOGD(TAG, "Signal stopped");
     
     // Validate voltage range (in millivolts)
     if (voltage_mv < -5000 || voltage_mv > 5000) {
@@ -528,7 +528,7 @@ void hal_set_source(source_net_t net, int32_t voltage_mv) {
     // Set the voltage using direct function with DAC value
     hal_set_source_direct(net, dac_value);
     
-    ESP_LOGI(TAG, "Set source %d to %d mV (%.2f V, DAC value: %d)", net, voltage_mv, voltage, dac_value);
+    ESP_LOGD(TAG, "Source %d set to %d mV (%.2f V, DAC value: %d)", net, voltage_mv, voltage, dac_value);
 
     if(signal_timer_running) {
         timerStart(signal_timer);
@@ -556,7 +556,7 @@ void hal_set_io(mcp_io_t io_pin, io_state_t state) {
 }
 
 void hal_reset_io() {
-    ESP_LOGD(TAG, "Resetting all IO pins to safe state");
+    ESP_LOGD(TAG, "IO reset started");
     
     // Set all IO pins to HiZ (input mode) using bulk operation
     // Port A (pins 0-7): all inputs
@@ -564,7 +564,7 @@ void hal_reset_io() {
     // Port B (pins 8-15): all inputs  
     mcp0.writeMode(0xFF, 1);
     
-    ESP_LOGD(TAG, "IO reset completed");
+    ESP_LOGD(TAG, "IO reset finished");
 }
 
 // Micro_MCP23X17 implementation
