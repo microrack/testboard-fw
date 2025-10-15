@@ -52,8 +52,6 @@ void setup() {
 
     if (!module) {
         ESP_LOGE(TAG, "Unknown module detected");
-        // mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-        // mcp1.digitalWrite(PIN_LED_OK, LOW);
         for(;;);
     }
 
@@ -78,6 +76,8 @@ void loop() {
     }
 
     display_printf("Waiting for module...");
+    // mcp1.digitalWrite(PIN_LED_OK, HIGH);
+    // mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
 
     bool p12v_ok, p5v_ok, m12v_ok;
     
@@ -92,21 +92,12 @@ void loop() {
     ESP_LOGD(TAG, "Module detected: %s", module->name);
     display_printf("Module: %s", module->name);
 
-    // mcp1.digitalWrite(PIN_LED_FAIL, LOW);
-
     bool test_result;
     do {
         test_result = execute_module_tests(module);
         if (test_result) {
-            // Test passed
-            // mcp1.digitalWrite(PIN_LED_OK, HIGH);
-            // mcp1.digitalWrite(PIN_LED_FAIL, LOW);
             display_printf("Module OK");
-        } else {
-            // Test failed
-            // mcp1.digitalWrite(PIN_LED_OK, LOW);
-            // mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-            
+        } else {            
             // Check if module is still present
             power_rails_state_t state = get_power_rails_state(NULL, NULL, NULL);
             if (state == POWER_RAILS_NONE) {
@@ -125,8 +116,6 @@ void loop() {
 
     execute_reset_operation();
 
-    // mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-    // mcp1.digitalWrite(PIN_LED_OK, LOW);
     display_printf("Module ejected");
 
     delay(100);

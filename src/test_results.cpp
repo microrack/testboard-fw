@@ -109,6 +109,8 @@ void display_all_test_results() {
     // Display results on LCD
     if (all_passed) {
         display_printf("TEST PASSED");
+        // mcp1.digitalWrite(PIN_LED_OK, HIGH);
+        // mcp1.digitalWrite(PIN_LED_FAIL, LOW);
     } else {
         const test_operation_t& failed_op = current_module->test_operations[first_failed_op];
         const test_operation_result_t& failed_res = global_test_results[first_failed_op];
@@ -133,6 +135,8 @@ void display_all_test_results() {
                       first_failed_op + 1, op_name, 
                       failed_op.pin, failed_op.arg1, failed_op.arg2,
                       failed_res.result);
+        // mcp1.digitalWrite(PIN_LED_OK, LOW);
+        // mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
     }
 }
 

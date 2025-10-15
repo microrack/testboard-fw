@@ -19,7 +19,8 @@ typedef enum {
     TEST_OP_CHECK_AVG,   // Check average signal value
     TEST_OP_CHECK_FREQ,  // Check signal frequency
     TEST_OP_CHECK_AMPLITUDE, // Check signal amplitude (max - min)
-    TEST_OP_DELAY        // Delay for specified time in milliseconds
+    TEST_OP_DELAY,       // Delay for specified time in milliseconds
+    TEST_OP_CHECK_IO_LEVEL // Check IO pin level
 } test_op_type_t;
 
 // Test operation structure

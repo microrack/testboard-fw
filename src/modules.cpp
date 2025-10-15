@@ -469,7 +469,6 @@ static bool execute_test_sequence(const test_operation_t* operations, size_t cou
                     delay(10);
                 }
             } while (!result);
-            // mcp1.digitalWrite(PIN_LED_FAIL, LOW);
         } else {
             uint32_t start_time = millis();
             result = execute_single_operation(op, &actual_result);
