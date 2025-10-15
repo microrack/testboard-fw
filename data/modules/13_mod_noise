@@ -1,0 +1,15 @@
+# alias input_1=out C
+# alias input_2=out D
+# alias sample_1=out B
+# alias sample_2=in pdB
+# alias step_1=in E
+# alias step_2=in F
+# alias track_1=out A
+# alias track_2=in pdA
+# alias track_pad=0
+# # setup
+reset
+# # check current
+i +12 0 50000
+i +5 0 50000
+i -12 0 50000

@@ -1,0 +1,21 @@
+# alias fb_pot=in pdB
+# alias input_1=out A
+# alias input_2=0
+# alias mix_pot=in pdA
+# alias out_ab_1=in A
+# alias out_ab_2=in B
+# alias out_cd_1=in C
+# alias out_cd_2=in D
+# alias return_1=out B
+# alias return_2=1
+# alias send_1=in E
+# alias send_2=in F
+# alias time_1=out C
+# alias time_2=2
+# alias time_pot=in pdC
+# # setup
+reset
+# # check current
+i +12 0 50000
+i +5 0 50000
+i -12 0 50000

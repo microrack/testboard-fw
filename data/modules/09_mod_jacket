@@ -1,0 +1,36 @@
+# alias a_io_1=out A
+# alias a_io_2=0
+# alias a_jack=in A
+# alias b_io_1=out B
+# alias b_io_2=1
+# alias b_jack=in B
+# alias c_io_1=out C
+# alias c_io_2=2
+# alias c_jack=in C
+# # setup
+reset
+# # check current
+i +12 0 1000
+i +5 2000 6000
+i -12 0 2000
+# # check channel 1
+reset 
+src A 2000
+v A 120 190
+reset 
+io 0 h
+v A 4100 5100                  +
+# # check channel 2
+reset 
+src B 2000
+v B 120 190
+reset 
+io 1 h
+v B 4100 5100                  +
+# # check channel 3
+reset 
+src C 2000
+v C 120 190
+reset 
+io 2 h
+v C 4100 5100                  +

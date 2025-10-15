@@ -1,0 +1,24 @@
+# alias bi_mode=10
+# alias fm_1=out B
+# alias fm_2=1
+# alias fnie_fm_pot=in pdB
+# alias lfo_mode=6
+# alias pitch_pot=in pdA
+# alias pulse_out_1=in C
+# alias pulse_out_2=in D
+# alias saw_out_1=in A
+# alias saw_out_2=in B
+# alias sync_1=8
+# alias sync_2=9
+# alias tri_out_1=in E
+# alias tri_out_2=in F
+# alias uni_mode=11
+# alias v_oct_1=out A
+# alias v_oct_2=0
+# alias vco_mode=7
+# # setup
+reset
+# # check current
+i +12 0 50000
+i +5 0 50000
+i -12 0 50000

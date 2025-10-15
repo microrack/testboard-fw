@@ -1,0 +1,21 @@
+# alias dc_mode=1
+# alias input_a=out A
+# alias input_b=out B
+# alias level_a_pot=in pdA
+# alias level_b_pot=in pdB
+# alias nc=out D
+# alias output_a_1=in A
+# alias output_a_2=in B
+# alias output_a_3=in C
+# alias output_b_1=in D
+# alias output_b_2=in E
+# alias output_b_3=in F
+# alias pullup_mode=0
+# alias signal_a=4
+# alias signal_b=5
+# # setup
+reset
+# # check current
+i +12 0 50000
+i +5 0 50000
+i -12 0 50000

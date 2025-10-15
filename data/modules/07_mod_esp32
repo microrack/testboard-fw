@@ -1,0 +1,29 @@
+# alias 12_14_1=12
+# alias 12_14_2=13
+# alias 12_14_3=in pdB
+# alias 12_14_4=14
+# alias 15_8_1=15
+# alias 15_8_2=7
+# alias 15_8_3=8
+# alias 1_2_1=1
+# alias 1_2_2=2
+# alias 3_6_1=3
+# alias 3_6_2=4
+# alias 3_6_3=5
+# alias 3_6_4=6
+# alias 3_6_5=in pdA
+# alias input_1=out A
+# alias input_2=out B
+# alias midi=0
+# alias output_a_1=in A
+# alias output_a_2=in B
+# alias output_b_1=in C
+# alias output_b_2=in D
+# alias output_c_1=in E
+# alias output_c_2=in F
+# # setup
+reset
+# # check current
+i +12 0 50000
+i +5 0 50000
+i -12 0 50000

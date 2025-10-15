@@ -1,0 +1,20 @@
+# alias comb_mode=1
+# alias cv_1=out D
+# alias cv_2=4
+# alias depth_pot=in pdB
+# alias input_1=out A
+# alias input_2=3
+# alias level=in pdA
+# alias lpg_mode=0
+# alias output_ab_1=in A
+# alias output_ab_2=in B
+# alias output_cd_1=in C
+# alias output_cd_2=in D
+# alias trig_1=out B
+# alias trig_2=2
+# # setup
+reset
+# # check current
+i +12 0 50000
+i +5 0 50000
+i -12 0 50000
