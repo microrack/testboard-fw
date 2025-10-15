@@ -52,8 +52,14 @@ typedef struct {
 // Initialize modules from filesystem
 bool init_modules_from_fs();
 
+// Set current module index
+void set_current_module_index(size_t index);
+
+// Get current module index
+size_t get_current_module_index();
+
 // Get module info by ID
-module_info_t* get_module_info(uint8_t id);
+module_info_t* get_current_module_info();
 
 // Get modules array (for internal use)
 module_info_t* get_modules_array();

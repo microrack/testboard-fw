@@ -45,6 +45,10 @@ bool perform_startup_sequence() {
         ESP_LOGE(TAG, "Failed to initialize display");
         return false;
     }
+
+    // Get adapter ID and corresponding module info
+    uint8_t adapter_id = hal_adapter_id();
+    set_current_module_index(adapter_id);
     
     // Step 3: Initialize modules
     if (!init_modules_from_fs()) {
@@ -515,6 +519,17 @@ bool check_signal_amplitude(ADC_sink_t pin, const range_t& range, int32_t* resul
     
     ESP_LOGI(TAG, "amplitude on pin %s: %d %s (acceptable range: %d-%d)",
              get_pin_name(pin), amplitude, amplitude_ok ? "OK" : "OUT OF RANGE", range.min, range.max);
+
+    if(!amplitude_ok) {
+        // print the buffer
+        uint16_t buffer[512];
+        size_t position;
+        global_sigscoper.get_buffer(0, 512, buffer, &position);
+        for(size_t i = 0; i < 512; i++) {
+            Serial.printf("%02X ", buffer[i]);
+        }
+        Serial.println();
+    }
     
     return amplitude_ok;
 } 
