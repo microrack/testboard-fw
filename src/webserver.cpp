@@ -27,6 +27,8 @@ volatile bool wifi_enabled = false;
 
 // Forward declarations
 void handleRoot();
+void handleGetModules();
+void handleGetCurrent();
 void handleGetConfig();
 void handlePostConfig();
 void handleGetResults();
@@ -62,6 +64,8 @@ bool init_webserver() {
     
     // Configure web server routes
     server.on("/", HTTP_GET, handleRoot);
+    server.on("/modules", HTTP_GET, handleGetModules);
+    server.on("/current", HTTP_GET, handleGetCurrent);
     server.on("/config", HTTP_GET, handleGetConfig);
     server.on("/config", HTTP_POST, handlePostConfig);
     server.on("/results", HTTP_GET, handleGetResults);
@@ -131,12 +135,148 @@ void handleRoot() {
     server.send(200, "text/html", htmlContent);
 }
 
+void handleGetModules() {
+    ESP_LOGI(TAG, "GET /modules - Getting list of modules");
+    
+    File dir = LittleFS.open("/modules");
+    if (!dir || !dir.isDirectory()) {
+        ESP_LOGE(TAG, "Failed to open /modules directory");
+        server.send(500, "application/json", "{\"error\":\"Failed to access modules directory\"}");
+        return;
+    }
+    
+    String json = "[";
+    bool first = true;
+    
+    File file = dir.openNextFile();
+    while (file) {
+        String name = file.name();
+        if (!name.endsWith(".bck")) {  // Skip backup files
+            if (!first) {
+                json += ",";
+            }
+            
+            // Extract index and module name from filename (e.g., "01_mod_clk")
+            int underscorePos = name.indexOf('_');
+            if (underscorePos > 0) {
+                String indexStr = name.substring(0, underscorePos);
+                String moduleName = name.substring(underscorePos + 1);
+                int indexNum = indexStr.toInt(); // Convert to integer to remove leading zeros
+                
+                json += "{";
+                json += "\"index\":" + String(indexNum) + ",";
+                json += "\"name\":\"" + moduleName + "\",";
+                json += "\"filename\":\"" + name + "\"";
+                json += "}";
+                first = false;
+            }
+        }
+        file.close();
+        file = dir.openNextFile();
+    }
+    dir.close();
+    
+    json += "]";
+    
+    server.send(200, "application/json", json);
+    ESP_LOGI(TAG, "Modules list sent successfully");
+}
+
+void handleGetCurrent() {
+    ESP_LOGI(TAG, "GET /current - Getting current module");
+    
+    size_t module_index = get_current_module_index();
+    char prefix[10];
+    snprintf(prefix, sizeof(prefix), "%02zu_", module_index);
+    
+    File dir = LittleFS.open("/modules");
+    if (!dir || !dir.isDirectory()) {
+        ESP_LOGE(TAG, "Failed to open /modules directory");
+        server.send(500, "application/json", "{\"error\":\"Failed to access modules directory\"}");
+        return;
+    }
+    
+    String module_filename = "";
+    File file = dir.openNextFile();
+    while (file) {
+        String name = file.name();
+        if (name.startsWith(prefix) && !name.endsWith(".bck")) {
+            module_filename = name;
+            file.close();
+            break;
+        }
+        file.close();
+        file = dir.openNextFile();
+    }
+    dir.close();
+    
+    if (module_filename.length() == 0) {
+        ESP_LOGE(TAG, "Current module not found");
+        server.send(404, "application/json", "{\"error\":\"Current module not found\"}");
+        return;
+    }
+    
+    // Extract module name from filename
+    int underscorePos = module_filename.indexOf('_');
+    String moduleName = module_filename.substring(underscorePos + 1);
+    
+    String json = "{";
+    json += "\"index\":" + String(module_index) + ",";
+    json += "\"name\":\"" + moduleName + "\",";
+    json += "\"filename\":\"" + module_filename + "\"";
+    json += "}";
+    
+    server.send(200, "application/json", json);
+    ESP_LOGI(TAG, "Current module info sent successfully");
+}
+
 void handleGetConfig() {
     ESP_LOGI(TAG, "GET /config - Downloading configuration");
     
-    File configFile = LittleFS.open("/config", "r");
+    // Get module filename from query parameter or use current module
+    String module_filename = "";
+    
+    if (server.hasArg("module")) {
+        module_filename = server.arg("module");
+        ESP_LOGI(TAG, "Using module from parameter: %s", module_filename.c_str());
+    } else {
+        // Get current module index and find the corresponding file
+        size_t module_index = get_current_module_index();
+        char prefix[10];
+        snprintf(prefix, sizeof(prefix), "%02zu_", module_index);
+        
+        // Find the module file
+        File dir = LittleFS.open("/modules");
+        if (!dir || !dir.isDirectory()) {
+            ESP_LOGE(TAG, "Failed to open /modules directory");
+            server.send(500, "text/plain", "Failed to access modules directory");
+            return;
+        }
+        
+        File file = dir.openNextFile();
+        while (file) {
+            String name = file.name();
+            if (name.startsWith(prefix) && !name.endsWith(".bck")) {
+                module_filename = name;
+                file.close();
+                break;
+            }
+            file.close();
+            file = dir.openNextFile();
+        }
+        dir.close();
+        
+        if (module_filename.length() == 0) {
+            ESP_LOGE(TAG, "Module file not found for index %zu", module_index);
+            server.send(404, "text/plain", "Configuration file not found");
+            return;
+        }
+    }
+    
+    String filepath = "/modules/" + module_filename;
+    File configFile = LittleFS.open(filepath.c_str(), "r");
     if (!configFile) {
-        ESP_LOGE(TAG, "Failed to open config for reading");
+        ESP_LOGE(TAG, "Failed to open module file for reading: %s", filepath.c_str());
         server.send(404, "text/plain", "Configuration file not found");
         return;
     }
@@ -144,7 +284,7 @@ void handleGetConfig() {
     String configContent = configFile.readString();
     configFile.close();
     
-    server.sendHeader("Content-Disposition", "attachment; filename=config");
+    server.sendHeader("Content-Disposition", "attachment; filename=" + module_filename);
     server.send(200, "text/plain", configContent);
     ESP_LOGI(TAG, "Configuration sent successfully");
 }
@@ -155,10 +295,51 @@ void handlePostConfig() {
     if (server.hasArg("plain")) {
         String newConfig = server.arg("plain");
         
+        // Get module filename from query parameter or use current module
+        String module_filename = "";
+        
+        if (server.hasArg("module")) {
+            module_filename = server.arg("module");
+            ESP_LOGI(TAG, "Using module from parameter: %s", module_filename.c_str());
+        } else {
+            // Get current module index and find the corresponding file
+            size_t module_index = get_current_module_index();
+            char prefix[10];
+            snprintf(prefix, sizeof(prefix), "%02zu_", module_index);
+            
+            // Find the module file
+            File dir = LittleFS.open("/modules");
+            if (!dir || !dir.isDirectory()) {
+                ESP_LOGE(TAG, "Failed to open /modules directory");
+                server.send(500, "text/plain", "Failed to access modules directory");
+                return;
+            }
+            
+            File file = dir.openNextFile();
+            while (file) {
+                String name = file.name();
+                if (name.startsWith(prefix) && !name.endsWith(".bck")) {
+                    module_filename = name;
+                    file.close();
+                    break;
+                }
+                file.close();
+                file = dir.openNextFile();
+            }
+            dir.close();
+            
+            if (module_filename.length() == 0) {
+                ESP_LOGE(TAG, "Module file not found for index %zu", module_index);
+                server.send(404, "text/plain", "Configuration file not found");
+                return;
+            }
+        }
+        
         // Write new configuration to filesystem
-        File configFile = LittleFS.open("/config", "w");
+        String filepath = "/modules/" + module_filename;
+        File configFile = LittleFS.open(filepath.c_str(), "w");
         if (!configFile) {
-            ESP_LOGE(TAG, "Failed to open config for writing");
+            ESP_LOGE(TAG, "Failed to open config for writing: %s", filepath.c_str());
             server.send(500, "text/plain", "Failed to save configuration");
             return;
         }
@@ -168,8 +349,12 @@ void handlePostConfig() {
         
         ESP_LOGI(TAG, "Configuration updated successfully");
         server.send(200, "text/plain", "Configuration updated successfully");
-        if (!init_modules_from_fs()) {
-            ESP_LOGE(TAG, "Failed to initialize modules from filesystem");
+        
+        // Only reinitialize if it's the current module
+        if (!server.hasArg("module")) {
+            if (!init_modules_from_fs()) {
+                ESP_LOGE(TAG, "Failed to initialize modules from filesystem");
+            }
         }
     } else {
         ESP_LOGE(TAG, "No configuration data received");

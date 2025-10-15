@@ -435,6 +435,11 @@
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+        .status.warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
         
         .test-result {
             font-weight: bold;
@@ -502,6 +507,8 @@
             modules: []
         };
         let selectedModuleIndex = -1;
+        let selectedModuleFilename = null; // Currently selected module filename
+        let modulesList = []; // List of all available modules
         let editMode = 'edit'; // 'edit' or 'raw'
         let testResults = null; // Store test results
         
@@ -581,7 +588,7 @@
         
         // Load current configuration on page load
         window.onload = function() {
-            loadCurrentConfig();
+            loadModulesList();
             
             // Add keyboard shortcut for mode switching
             document.addEventListener('keydown', function(event) {
@@ -593,94 +600,194 @@
             });
         };
 
-        function loadCurrentConfig() {
-            fetch('./config')
-                .then(response => response.text())
+        function loadModulesList() {
+            console.log('[DEBUG] Loading modules list...');
+            fetch('./modules')
+                .then(response => {
+                    console.log('[DEBUG] Modules list response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
-                    parseConfig(data);
-                    renderConfig();
-                    loadTestResults(); // Load test results after config
+                    console.log('[DEBUG] Modules list received:', data);
+                    modulesList = data;
+                    populateModuleSelector();
+                    loadCurrentModule();
                 })
                 .catch(error => {
-                    console.error('Error:', error);
-                    showStatus('Failed to load configuration', 'error');
+                    console.error('[ERROR] Error loading modules list:', error);
+                    showStatus('Failed to load modules list', 'error');
                 });
         }
 
+        function populateModuleSelector() {
+            console.log('[DEBUG] Populating module selector with', modulesList.length, 'modules');
+            const moduleSelector = document.getElementById('moduleSelector');
+            moduleSelector.innerHTML = '<option value="">Select module</option>';
+            
+            modulesList.forEach(module => {
+                console.log('[DEBUG] Adding module to selector:', module);
+                const option = document.createElement('option');
+                option.value = module.filename;
+                option.textContent = `[${module.index}] ${module.name}`;
+                moduleSelector.appendChild(option);
+            });
+        }
+
+        function loadCurrentModule() {
+            console.log('[DEBUG] Loading current module...');
+            fetch('./current')
+                .then(response => {
+                    console.log('[DEBUG] Current module response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('[DEBUG] Current module data:', data);
+                    selectedModuleFilename = data.filename;
+                    const moduleSelector = document.getElementById('moduleSelector');
+                    moduleSelector.value = selectedModuleFilename;
+                    console.log('[DEBUG] Selected module filename set to:', selectedModuleFilename);
+                    loadModuleConfig(selectedModuleFilename);
+                })
+                .catch(error => {
+                    console.error('[ERROR] Error loading current module:', error);
+                    showStatus('Failed to load current module', 'error');
+                });
+        }
+
+        function selectModule(filename) {
+            console.log('[DEBUG] selectModule called with filename:', filename);
+            if (!filename) return;
+            selectedModuleFilename = filename;
+            loadModuleConfig(filename);
+        }
+
+        function loadModuleConfig(filename) {
+            console.log('[DEBUG] Loading module config for:', filename);
+            fetch(`./config?module=${encodeURIComponent(filename)}`)
+                .then(response => {
+                    console.log('[DEBUG] Module config response status:', response.status);
+                    return response.text();
+                })
+                .then(data => {
+                    console.log('[DEBUG] Module config data received, length:', data.length);
+                    console.log('[DEBUG] Module config content:', data);
+                    parseConfig(data);
+                    renderConfig();
+                    loadTestResults();
+                })
+                .catch(error => {
+                    console.error('[ERROR] Error loading module config:', error);
+                    showStatus('Failed to load module configuration', 'error');
+                });
+        }
+
+
         function loadTestResults() {
+            console.log('[DEBUG] Loading test results...');
             fetch('./results')
                 .then(response => {
+                    console.log('[DEBUG] Results response status:', response.status);
                     if (response.ok) {
                         return response.text();
                     } else {
-                        console.log('No test results available');
+                        console.log('[DEBUG] No test results available');
                         testResults = null;
                         return null;
                     }
                 })
                 .then(data => {
+                    console.log('[DEBUG] Results data received, length:', data ? data.length : 0);
+                    console.log('[DEBUG] Results raw data:', data);
                     if (data) {
                         parseTestResults(data);
                     }
+                    console.log('[DEBUG] testResults after parsing:', testResults);
                     // Re-render to show results
                     if (selectedModuleIndex >= 0) {
                         showModuleOperations(selectedModuleIndex);
                     }
                 })
                 .catch(error => {
-                    console.error('Error loading test results:', error);
+                    console.error('[ERROR] Error loading test results:', error);
                     testResults = null;
                 });
         }
 
         function parseTestResults(data) {
             const lines = data.split('\n').filter(line => line.trim());
+            console.log('[DEBUG] parseTestResults: total lines:', lines.length);
             if (lines.length === 0) {
                 testResults = null;
+                console.log('[DEBUG] parseTestResults: no lines, setting testResults to null');
                 return;
             }
 
-            const moduleName = lines[0].trim();
+            const resultsModuleName = lines[0].trim();
+            console.log('[DEBUG] Test results module name:', resultsModuleName);
+            
+            // Extract module name from selected filename (e.g., "01_mod_clk" -> "mod_clk")
+            let selectedModuleName = '';
+            if (selectedModuleFilename) {
+                const underscorePos = selectedModuleFilename.indexOf('_');
+                if (underscorePos > 0) {
+                    selectedModuleName = selectedModuleFilename.substring(underscorePos + 1);
+                }
+            }
+            console.log('[DEBUG] Selected module name:', selectedModuleName);
+            console.log('[DEBUG] Comparing:', resultsModuleName, '===', selectedModuleName, '?', resultsModuleName === selectedModuleName);
+            
+            // Check if results match selected module
+            if (selectedModuleName && resultsModuleName !== selectedModuleName) {
+                console.log('[DEBUG] Test results are for different module. Ignoring.');
+                testResults = null;
+                showStatus(`Test results are for module "${resultsModuleName}", but selected module is "${selectedModuleName}"`, 'warning');
+                return;
+            }
+
             const results = [];
 
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i].trim();
                 const parts = line.split(' ');
+                console.log('[DEBUG] Parsing result line', i, ':', line, '-> parts:', parts);
                 if (parts.length >= 2) {
                     const passed = parts[0] === 'true';
                     const result = parseInt(parts[1]) || 0;
                     const executionTime = parts.length >= 3 ? parseInt(parts[2]) || 0 : 0;
-                    results.push({ passed, result, executionTime });
+                    const resultObj = { passed, result, executionTime };
+                    console.log('[DEBUG] Result object:', resultObj);
+                    results.push(resultObj);
                 }
             }
 
             testResults = {
-                moduleName: moduleName,
+                moduleName: resultsModuleName,
                 results: results
             };
+            console.log('[DEBUG] Test results parsed successfully. Operations:', results.length);
+            console.log('[DEBUG] Final testResults object:', testResults);
         }
 
         function parseConfig(text) {
+            console.log('[DEBUG] parseConfig called, text length:', text.length);
             currentConfig.modules = [];
             const lines = text.split('\n');
-            let currentModule = null;
+            
+            // Create a single module automatically (we don't have "module" line anymore)
+            let currentModule = {
+                name: selectedModuleFilename || 'unknown',
+                id: 0,
+                aliases: [],
+                operations: []
+            };
+            currentConfig.modules.push(currentModule);
+            console.log('[DEBUG] Created module:', currentModule.name);
             
             for (let line of lines) {
                 line = line.trim();
                 if (!line) continue;
                 
-                if (line.startsWith('module ')) {
-                    const parts = line.split(' ');
-                    if (parts.length >= 3) {
-                        currentModule = {
-                            name: parts[1],
-                            id: parts[2],
-                            aliases: [],
-                            operations: []
-                        };
-                        currentConfig.modules.push(currentModule);
-                    }
-                } else if (line.startsWith('# alias ') && currentModule) {
+                if (line.startsWith('# alias ') && currentModule) {
                     // Parse alias: "# alias <alias_name>=<pin_name>"
                     const aliasMatch = line.match(/^# alias\s+([^=]+)=(.*)$/);
                     if (aliasMatch) {
@@ -722,37 +829,23 @@
                     }
                 }
             }
-            
-            if (currentConfig.modules.length === 0) {
-                addModule();
+            console.log('[DEBUG] parseConfig finished. Modules:', currentConfig.modules.length);
+            console.log('[DEBUG] Module data:', currentConfig.modules[0]);
+            if (currentConfig.modules[0]) {
+                console.log('[DEBUG] Aliases count:', currentConfig.modules[0].aliases.length);
+                console.log('[DEBUG] Operations count:', currentConfig.modules[0].operations.length);
             }
         }
 
         function renderConfig() {
-            // Update module selector
-            const moduleSelector = document.getElementById('moduleSelector');
-            moduleSelector.innerHTML = '<option value="">Select module</option>';
-            
-            currentConfig.modules.forEach((module, moduleIndex) => {
-                const option = document.createElement('option');
-                option.value = moduleIndex;
-                option.textContent = `${module.name} (ID: ${module.id})`;
-                moduleSelector.appendChild(option);
-            });
-            
-            // Show operations for selected module
-            if (selectedModuleIndex >= 0 && selectedModuleIndex < currentConfig.modules.length) {
-                showModuleOperations(selectedModuleIndex);
-            }
-        }
-        
-        function selectModule(moduleIndex) {
-            selectedModuleIndex = parseInt(moduleIndex);
-            if (selectedModuleIndex >= 0 && selectedModuleIndex < currentConfig.modules.length) {
-                showModuleOperations(selectedModuleIndex);
+            console.log('[DEBUG] renderConfig called');
+            // Auto-select the first (and only) module
+            if (currentConfig.modules.length > 0) {
+                console.log('[DEBUG] Rendering module 0');
+                selectedModuleIndex = 0;
+                showModuleOperations(0);
             } else {
-                document.getElementById('aliasesContainer').style.display = 'none';
-                document.getElementById('operationsContainer').style.display = 'none';
+                console.log('[DEBUG] No modules to render');
             }
         }
         
@@ -770,9 +863,11 @@
         }
         
         function showModuleOperations(moduleIndex) {
+            console.log('[DEBUG] showModuleOperations called with moduleIndex:', moduleIndex);
             const aliasesContainer = document.getElementById('aliasesContainer');
             const operationsContainer = document.getElementById('operationsContainer');
             const module = currentConfig.modules[moduleIndex];
+            console.log('[DEBUG] Module to display:', module);
             
             // Show aliases
             aliasesContainer.style.display = 'block';
@@ -822,6 +917,7 @@
                 }, 10);
             }
             operationsContainer.style.display = 'block';
+            console.log('[DEBUG] showModuleOperations finished. Containers displayed.');
         }
 
         function renderAliasLine(moduleIndex, aliasIndex, alias) {
@@ -1223,13 +1319,22 @@
         }
 
         function reloadFromDevice() {
-            loadCurrentConfig();
+            if (!selectedModuleFilename) {
+                showStatus('No module selected', 'error');
+                return;
+            }
+            loadModuleConfig(selectedModuleFilename);
             showStatus('Configuration reloaded from device', 'success');
         }
 
         function saveToDevice() {
+            if (!selectedModuleFilename) {
+                showStatus('No module selected', 'error');
+                return;
+            }
+            
             const text = generateConfigText();
-            fetch('/config', {
+            fetch(`/config?module=${encodeURIComponent(selectedModuleFilename)}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'text/plain',
@@ -1238,7 +1343,7 @@
             })
             .then(response => {
                 if (response.ok) {
-                    showStatus('Configuration saved to device successfully! Board will use new config on next restart.', 'success');
+                    showStatus('Configuration saved to device successfully!', 'success');
                 } else {
                     throw new Error('Save failed');
                 }
@@ -1265,13 +1370,28 @@
         }
 
         function getTestResultHtml(moduleIndex, opIndex) {
+            console.log('[DEBUG] getTestResultHtml called for moduleIndex:', moduleIndex, 'opIndex:', opIndex);
+            console.log('[DEBUG] testResults:', testResults);
+            
             if (!testResults || !testResults.results) {
+                console.log('[DEBUG] No testResults or testResults.results');
                 return '';
             }
             
             // Check if module name matches
             const module = currentConfig.modules[moduleIndex];
-            if (!module || testResults.moduleName !== module.name) {
+            console.log('[DEBUG] module:', module);
+            console.log('[DEBUG] Comparing testResults.moduleName:', testResults.moduleName, 'with module.name:', module?.name);
+            
+            // Extract module name from filename if it contains underscore
+            let moduleName = module?.name || '';
+            if (moduleName.indexOf('_') > 0) {
+                moduleName = moduleName.substring(moduleName.indexOf('_') + 1);
+            }
+            console.log('[DEBUG] Extracted module name:', moduleName);
+            
+            if (!module || testResults.moduleName !== moduleName) {
+                console.log('[DEBUG] Module name mismatch or no module');
                 return '';
             }
             
@@ -1282,19 +1402,23 @@
                     realOperationIndex++;
                 }
             }
+            console.log('[DEBUG] realOperationIndex:', realOperationIndex);
             
             // Check if current operation is a comment
             if (module.operations[opIndex] && module.operations[opIndex].type === 'comment') {
+                console.log('[DEBUG] Current operation is a comment, no result to show');
                 return ''; // Don't show results for comments
             }
             
             // Get the result for this real operation
             if (realOperationIndex >= testResults.results.length) {
+                console.log('[DEBUG] realOperationIndex', realOperationIndex, '>= testResults.results.length', testResults.results.length);
                 return '';
             }
             
             const result = testResults.results[realOperationIndex];
             const resultClass = result.passed ? 'passed' : 'failed';
+            console.log('[DEBUG] Returning result HTML for operation', opIndex, ':', result);
             
             return `<span class="test-result ${resultClass}">${result.result} (${result.executionTime}ms)</span>`;
         }
