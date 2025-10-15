@@ -328,6 +328,11 @@
             border-color: #28a745;
         }
         
+        .operation-type select[data-operation="iolevel"] {
+            background-color: #cfe2ff;
+            border-color: #0d6efd;
+        }
+        
         .operation-type select[data-operation="pd"] {
             background-color: #fff3cd;
             border-color: #ffc107;
@@ -526,6 +531,7 @@
             'src': { name: 'Source', params: ['src_pin', 'voltage'] },
             'src_sig': { name: 'Source Signal', params: ['src_pin', 'frequency'] },
             'io': { name: 'IO', params: ['io_pin', 'state'] },
+            'iolevel': { name: 'IO Level Check', params: ['io_pin', 'io_level'] },
             'pd': { name: 'Pulldown', params: ['pd_pin', 'pd_state'] },
             'i': { name: 'Check Current', params: ['rail', 'low', 'high'] },
             'v': { name: 'Check Voltage', params: ['pin', 'low', 'high'] },
@@ -580,6 +586,7 @@
             'io_pin': ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15'],
             'pd_pin': ['pdA', 'pdB', 'pdC'],
             'state': ['h', 'l', 'z'],
+            'io_level': ['h', 'l'],
             'pd_state': ['p', 'z'],
             'rail': ['+12', '+5', '-12'],
             'sample_freq': ['1000', '5000', '10000', '50000', '100000'],
@@ -1018,6 +1025,7 @@
                             // Add state color classes for specific operations
                             let stateClass = '';
                             if ((operation.type === 'io' && param === 'state') || 
+                                (operation.type === 'iolevel' && param === 'io_level') ||
                                 (operation.type === 'pd' && param === 'pd_state')) {
                                 if (value && ['h', 'l', 'z', 'p'].includes(value)) {
                                     stateClass = `state-${value}`;

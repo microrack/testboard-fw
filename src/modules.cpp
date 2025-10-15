@@ -242,6 +242,18 @@ bool init_modules_from_fs() {
             op.arg1 = string_to_io_state(token);
             op.arg2 = 0;
             
+        } else if (strcmp(token, "iolevel") == 0) {
+            op.op = TEST_OP_CHECK_IO_LEVEL;
+            op.repeat = repeat_flag;
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.pin = atoi(token);
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            // h = HIGH = 1, l = LOW = 0
+            op.arg1 = (strcmp(token, "h") == 0) ? 1 : 0;
+            op.arg2 = 0;
+            
         } else if (strcmp(token, "pd") == 0) {
             op.op = TEST_OP_SINK_PD;
             op.repeat = repeat_flag;
@@ -509,6 +521,11 @@ static bool execute_single_operation(const test_operation_t& op, int32_t* result
             ESP_LOGI(TAG, "Setting IO pin %d to %d", op.pin, op.arg1);
             hal_set_io((mcp_io_t)op.pin, (io_state_t)op.arg1);
             return true;
+        }
+        
+        case TEST_OP_CHECK_IO_LEVEL: {
+            const char* expected_level = (op.arg1 == 1) ? "HIGH" : "LOW";
+            return check_io_level((mcp_io_t)op.pin, op.arg1, expected_level, result);
         }
         
         case TEST_OP_SINK_PD: {

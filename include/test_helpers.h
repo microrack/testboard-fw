@@ -150,4 +150,15 @@ bool check_signal_amplitude(ADC_sink_t pin, const range_t& range, int32_t* resul
 // Helper functions for ADC mapping
 adc_unit_t adc_sink_to_unit(ADC_sink_t pin);
 
+/**
+ * @brief Check if IO pin level matches expected value
+ * 
+ * @param pin The IO pin to check
+ * @param expected_level Expected level (1 for HIGH, 0 for LOW)
+ * @param level_name Name of the expected level for display purposes
+ * @param result Output parameter for actual level read
+ * @return true if the level matches expected, false otherwise
+ */
+bool check_io_level(mcp_io_t pin, int expected_level, const char* level_name, int32_t* result = nullptr);
+
  

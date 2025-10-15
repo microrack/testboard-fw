@@ -136,6 +136,24 @@ bool test_pin_range(ADC_sink_t pin, const range_t& range, const char* pin_name, 
     return voltage_ok;
 }
 
+bool check_io_level(mcp_io_t pin, int expected_level, const char* level_name, int32_t* result) {
+    ESP_LOGD(TAG, "Checking IO pin %d level", pin);
+
+    // Read the current level of the IO pin
+    int actual_level = mcp0.digitalRead(pin);
+
+    bool level_ok = (actual_level == expected_level);
+
+    if (result) {
+        *result = actual_level;
+    }
+
+    ESP_LOGI(TAG, "IO pin %d level: %s %s (expected: %s)",
+             pin, actual_level ? "HIGH" : "LOW", level_ok ? "OK" : "MISMATCH", level_name);
+
+    return level_ok;
+}
+
 bool test_pin_pd(const voltage_source_t& source, 
                 const range_t& hiz_range, const range_t& pd_range,
                 const char* source_name) {

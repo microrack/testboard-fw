@@ -1,3 +1,4 @@
+module mod_clk 1
 # alias clk_in_=0
 # alias rst_out=1
 # alias clk_out=2
@@ -16,3 +17,166 @@ reset
 i +12 0 50000
 i +5 0 50000
 i -12 0 50000
+
+# # Test 1: rst_in pulse - check out_1 is high, clk_out is low
+reset
+io 3 h
+delay 5
+io 3 l
+delay 5
+io 4 z
+iolevel 4 h
+io 2 z
+iolevel 2 l
+
+# # Test 2: Pull rst_out to 0, send clock pulses
+reset
+io 1 l
+delay 5
+
+# # Clock pulse 1: out_1 -> out_2
+io 0 h
+delay 5
+io 0 l
+delay 5
+io 5 z
+iolevel 5 h
+io 4 z
+iolevel 4 l
+
+# # Clock pulse 2: out_2 -> out_3
+io 0 h
+delay 5
+io 0 l
+delay 5
+io 6 z
+iolevel 6 h
+io 5 z
+iolevel 5 l
+
+# # Clock pulse 3: out_3 -> out_4
+io 0 h
+delay 5
+io 0 l
+delay 5
+io 7 z
+iolevel 7 h
+io 6 z
+iolevel 6 l
+
+# # Clock pulse 4: out_4 -> out_5
+io 0 h
+delay 5
+io 0 l
+delay 5
+io 8 z
+iolevel 8 h
+io 7 z
+iolevel 7 l
+
+# # Clock pulse 5: out_5 -> out_6
+io 0 h
+delay 5
+io 0 l
+delay 5
+io 9 z
+iolevel 9 h
+io 8 z
+iolevel 8 l
+
+# # Clock pulse 6: out_6 -> out_7
+io 0 h
+delay 5
+io 0 l
+delay 5
+io 10 z
+iolevel 10 h
+io 9 z
+iolevel 9 l
+
+# # Clock pulse 7: out_7 -> out_8
+io 0 h
+delay 5
+io 0 l
+delay 5
+io 11 z
+iolevel 11 h
+io 10 z
+iolevel 10 l
+
+# # Clock pulse 8: out_8 -> clk_out
+io 0 h
+delay 5
+io 2 z
+iolevel 2 h
+io 11 z
+iolevel 11 l
+io 4 z
+iolevel 4 l
+
+# # Test 3: rst_out pulse - check out_1 is high
+reset
+io 1 h
+delay 5
+io 1 l
+delay 5
+io 4 z
+iolevel 4 h
+io 1 z
+
+# # Test 4: 9 clock pulses - check out_2 is high
+reset
+io 3 h
+delay 5
+io 3 l
+delay 5
+
+# # Pulse 1
+io 0 h
+delay 5
+io 0 l
+delay 5
+# # Pulse 2
+io 0 h
+delay 5
+io 0 l
+delay 5
+# # Pulse 3
+io 0 h
+delay 5
+io 0 l
+delay 5
+# # Pulse 4
+io 0 h
+delay 5
+io 0 l
+delay 5
+# # Pulse 5
+io 0 h
+delay 5
+io 0 l
+delay 5
+# # Pulse 6
+io 0 h
+delay 5
+io 0 l
+delay 5
+# # Pulse 7
+io 0 h
+delay 5
+io 0 l
+delay 5
+# # Pulse 8
+io 0 h
+delay 5
+io 0 l
+delay 5
+# # Pulse 9
+io 0 h
+delay 5
+io 0 l
+delay 5
+
+# # Check out_2 is high
+io 5 z
+iolevel 5 h
