@@ -367,6 +367,8 @@ int32_t measure_current_raw(uint8_t pin) {
     
     // Get median value
     int raw = get_median(samples, MEDIAN_FILTER_SIZE);
+
+    ESP_LOGD(TAG, "Current measurement - ADC: %d", raw);
     
     int32_t voltage = raw * 3300 / 4095;
     int32_t current = (voltage * 1000) / (SHUNT_RESISTOR * INA196_GAIN);
@@ -389,13 +391,12 @@ int32_t measure_current(uint8_t pin) {
             current -= ref_current_m12v;
             break;
     }
-    
-    /*
-    ESP_LOGD(TAG, "Current measurement - Raw: %d uA, Calibrated: %d uA", 
+
+    ESP_LOGD(TAG, "%s Current measurement - Raw: %d uA, Calibrated: %d uA", 
+             pin == PIN_INA_12V ? "+12V" : pin == PIN_INA_5V ? "+5V" : "-12V",
              current + (pin == PIN_INA_12V ? ref_current_12v : 
                        pin == PIN_INA_5V ? ref_current_5v : ref_current_m12v),
              current);
-    */
              
     current = max((int32_t)0, current);
              

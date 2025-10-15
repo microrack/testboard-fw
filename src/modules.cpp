@@ -12,6 +12,7 @@ static const char* TAG = "modules";
 // Global variables for module storage
 static module_info_t* modules = nullptr;
 static size_t modules_count = 0;
+static size_t current_module_index = 0;
 static test_operation_t* operations_buffer = nullptr;
 static size_t operations_buffer_size = 0;
 
@@ -77,23 +78,67 @@ static const char* get_token(const char* str, char* token, size_t max_len) {
     return str;
 }
 
+void set_current_module_index(size_t index) {
+    current_module_index = index;
+}
+
+size_t get_current_module_index() {
+    return current_module_index;
+}
+
 bool init_modules_from_fs() {
-    ESP_LOGD(TAG, "Initializing modules from filesystem");
+    ESP_LOGD(TAG, "Initializing module from filesystem");
     
     if (!LittleFS.begin(true)) {
         ESP_LOGE(TAG, "Failed to mount LittleFS");
         return false;
     }
     
-    File file = LittleFS.open("/config", "r");
-    if (!file) {
-        ESP_LOGE(TAG, "Failed to open config");
+    // Format the index with leading zero (e.g., "01_" for index 1)
+    char prefix[10];
+    snprintf(prefix, sizeof(prefix), "%02zu_", current_module_index);
+    
+    // Find the file in /modules directory that starts with the index
+    File dir = LittleFS.open("/modules");
+    if (!dir || !dir.isDirectory()) {
+        ESP_LOGE(TAG, "Failed to open /modules directory");
         return false;
     }
     
-    // First pass: count modules and operations
+    String module_filename = "";
+    File file = dir.openNextFile();
+    while (file) {
+        String name = file.name();
+        if (name.startsWith(prefix)) {
+            module_filename = name;
+            file.close();
+            break;
+        }
+        file.close();
+        file = dir.openNextFile();
+    }
+    dir.close();
+    
+    if (module_filename.length() == 0) {
+        ESP_LOGE(TAG, "No module file found with prefix %s", prefix);
+        return false;
+    }
+    
+    // Extract module name from filename (remove index prefix)
+    String module_name = module_filename.substring(3); // Skip "NN_" prefix
+    
+    ESP_LOGI(TAG, "Loading module: %s (ID: %zu)", module_name.c_str(), current_module_index);
+    
+    // Open the module file
+    String filepath = "/modules/" + module_filename;
+    file = LittleFS.open(filepath.c_str(), "r");
+    if (!file) {
+        ESP_LOGE(TAG, "Failed to open module file: %s", filepath.c_str());
+        return false;
+    }
+    
+    // First pass: count operations
     size_t total_operations = 0;
-    size_t module_count = 0;
     file.seek(0);
     
     while (file.available()) {
@@ -104,14 +149,10 @@ bool init_modules_from_fs() {
             continue;
         }
         
-        if (line.startsWith("module ")) {
-            module_count++;
-        } else if (line.length() > 0) {
-            total_operations++;
-        }
+        total_operations++;
     }
     
-    ESP_LOGD(TAG, "Found %zu modules with %zu total operations", module_count, total_operations);
+    ESP_LOGD(TAG, "Found %zu operations", total_operations);
     
     // Allocate memory
     if (operations_buffer) {
@@ -122,24 +163,28 @@ bool init_modules_from_fs() {
     }
     
     operations_buffer = (test_operation_t*)malloc(total_operations * sizeof(test_operation_t));
-    modules = (module_info_t*)malloc(module_count * sizeof(module_info_t));
-    
-
+    modules = (module_info_t*)malloc(1 * sizeof(module_info_t));
     
     if (!operations_buffer || !modules) {
-        ESP_LOGE(TAG, "Failed to allocate memory for modules");
+        ESP_LOGE(TAG, "Failed to allocate memory for module");
         file.close();
         return false;
     }
     
-    modules_count = module_count;
+    modules_count = 1;
     operations_buffer_size = total_operations;
     
-    // Second pass: parse modules and operations
+    // Initialize the single module
+    module_info_t* current_module = &modules[0];
+    current_module->id = current_module_index;
+    current_module->name = strdup(module_name.c_str());
+    current_module->test_operations = operations_buffer;
+    current_module->test_operations_count = 0;
+    current_module->test_results = nullptr; // Will be allocated when needed
+    
+    // Second pass: parse operations
     file.seek(0);
     size_t operation_index = 0;
-    size_t module_index = 0;
-    module_info_t* current_module = nullptr;
     
     while (file.available()) {
         String line = file.readStringUntil('\n');
@@ -149,237 +194,214 @@ bool init_modules_from_fs() {
             continue;
         }
         
-        if (line.startsWith("module ")) {
-            // Parse module line: "module <name> <id>"
-            const char* line_str = line.c_str();
-            char token[64];
-            
-            line_str = get_token(line_str, token, sizeof(token)); // Skip "module"
-            line_str = get_token(line_str, token, sizeof(token)); // Get name
-            
-            char* name = strdup(token);
-            line_str = get_token(line_str, token, sizeof(token)); // Get id
-            
-            current_module = &modules[module_index];
-            current_module->id = atoi(token);
-            current_module->name = name;
-            current_module->test_operations = &operations_buffer[operation_index];
-            current_module->test_operations_count = 0;
-            current_module->test_results = nullptr; // Will be allocated when needed
-            
-            module_index++;
-            ESP_LOGD(TAG, "Parsing module: %s (ID: %d)", name, current_module->id);
-            
-        } else if (current_module && line.length() > 0) {
-            // Parse operation line
-            const char* line_str = line.c_str();
-            char token[64];
-            test_operation_t& op = operations_buffer[operation_index];
-            
-            // Check for repeat flag (+ at end of line)
-            bool repeat_flag = false;
-            if (line.endsWith("+")) {
-                repeat_flag = true;
-                line = line.substring(0, line.length() - 1); // Remove the +
-                line_str = line.c_str();
-            }
+        // Parse operation line
+        const char* line_str = line.c_str();
+        char token[64];
+        test_operation_t& op = operations_buffer[operation_index];
+        
+        // Check for repeat flag (+ at end of line)
+        bool repeat_flag = false;
+        if (line.endsWith("+")) {
+            repeat_flag = true;
+            line = line.substring(0, line.length() - 1); // Remove the +
+            line_str = line.c_str();
+        }
+        
+        line_str = get_token(line_str, token, sizeof(token));
+        
+        if (strcmp(token, "src") == 0) {
+            op.op = TEST_OP_SOURCE;
+            op.repeat = repeat_flag;
             
             line_str = get_token(line_str, token, sizeof(token));
+            op.pin = string_to_source(token);
             
-            if (strcmp(token, "src") == 0) {
-                op.op = TEST_OP_SOURCE;
-                op.repeat = repeat_flag;
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.pin = string_to_source(token);
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg1 = atoi(token);
-                op.arg2 = 0;
-                
-            } else if (strcmp(token, "src_sig") == 0) {
-                op.op = TEST_OP_SOURCE_SIG;
-                op.repeat = repeat_flag;
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.pin = string_to_source(token);
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg1 = atoi(token); // Frequency in Hz
-                op.arg2 = 0;
-                
-            } else if (strcmp(token, "io") == 0) {
-                op.op = TEST_OP_IO;
-                op.repeat = repeat_flag;
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.pin = atoi(token);
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg1 = string_to_io_state(token);
-                op.arg2 = 0;
-                
-            } else if (strcmp(token, "pd") == 0) {
-                op.op = TEST_OP_SINK_PD;
-                op.repeat = repeat_flag;
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.pin = 0; // Assuming PIN_SINK_PD_A
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg1 = (strcmp(token, "p") == 0) ? 1 : 0;
-                op.arg2 = 0;
-                
-            } else if (strcmp(token, "i") == 0) {
-                op.op = TEST_OP_CHECK_CURRENT;
-                op.repeat = repeat_flag;
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.pin = string_to_current_rail(token);
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg1 = atoi(token);
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg2 = atoi(token);
-                
-            } else if (strcmp(token, "v") == 0) {
-                op.op = TEST_OP_CHECK_PIN;
-                op.repeat = repeat_flag;
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.pin = string_to_voltage_pin(token);
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg1 = atoi(token);
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg2 = atoi(token);
-                
-            } else if (strcmp(token, "reset") == 0) {
-                op.op = TEST_OP_RESET;
-                op.repeat = repeat_flag;
-                op.pin = 0;  // Not used for reset
-                op.arg1 = 0; // Not used for reset
-                op.arg2 = 0; // Not used for reset
-                
-            } else if (strcmp(token, "scope") == 0) {
-                op.op = TEST_OP_SCOPE;
-                op.repeat = repeat_flag;
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.pin = string_to_voltage_pin(token);
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg1 = atoi(token); // Sample frequency
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg2 = atoi(token); // Buffer size
-                
-            } else if (strcmp(token, "min") == 0) {
-                op.op = TEST_OP_CHECK_MIN;
-                op.repeat = repeat_flag;
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.pin = string_to_voltage_pin(token);
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg1 = atoi(token); // Low value
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg2 = atoi(token); // High value
-                
-            } else if (strcmp(token, "max") == 0) {
-                op.op = TEST_OP_CHECK_MAX;
-                op.repeat = repeat_flag;
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.pin = string_to_voltage_pin(token);
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg1 = atoi(token); // Low value
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg2 = atoi(token); // High value
-                
-            } else if (strcmp(token, "avg") == 0) {
-                op.op = TEST_OP_CHECK_AVG;
-                op.repeat = repeat_flag;
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.pin = string_to_voltage_pin(token);
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg1 = atoi(token); // Low value
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg2 = atoi(token); // High value
-                
-            } else if (strcmp(token, "freq") == 0) {
-                op.op = TEST_OP_CHECK_FREQ;
-                op.repeat = repeat_flag;
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.pin = string_to_voltage_pin(token);
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg1 = atoi(token); // Low value
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg2 = atoi(token); // High value
-                
-            } else if (strcmp(token, "amplitude") == 0) {
-                op.op = TEST_OP_CHECK_AMPLITUDE;
-                op.repeat = repeat_flag;
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.pin = string_to_voltage_pin(token);
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg1 = atoi(token); // Low value
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg2 = atoi(token); // High value
-                
-            } else if (strcmp(token, "delay") == 0) {
-                op.op = TEST_OP_DELAY;
-                op.repeat = repeat_flag;
-                
-                line_str = get_token(line_str, token, sizeof(token));
-                op.arg1 = atoi(token); // Timeout in milliseconds
-                op.pin = 0;  // Not used for delay
-                op.arg2 = 0; // Not used for delay
-                
-            } else {
-                ESP_LOGW(TAG, "Unknown operation: %s", token);
-                continue;
-            }
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg1 = atoi(token);
+            op.arg2 = 0;
             
-            operation_index++;
-            current_module->test_operations_count++;
+        } else if (strcmp(token, "src_sig") == 0) {
+            op.op = TEST_OP_SOURCE_SIG;
+            op.repeat = repeat_flag;
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.pin = string_to_source(token);
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg1 = atoi(token); // Frequency in Hz
+            op.arg2 = 0;
+            
+        } else if (strcmp(token, "io") == 0) {
+            op.op = TEST_OP_IO;
+            op.repeat = repeat_flag;
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.pin = atoi(token);
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg1 = string_to_io_state(token);
+            op.arg2 = 0;
+            
+        } else if (strcmp(token, "pd") == 0) {
+            op.op = TEST_OP_SINK_PD;
+            op.repeat = repeat_flag;
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.pin = 0; // Assuming PIN_SINK_PD_A
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg1 = (strcmp(token, "p") == 0) ? 1 : 0;
+            op.arg2 = 0;
+            
+        } else if (strcmp(token, "i") == 0) {
+            op.op = TEST_OP_CHECK_CURRENT;
+            op.repeat = repeat_flag;
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.pin = string_to_current_rail(token);
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg1 = atoi(token);
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg2 = atoi(token);
+            
+        } else if (strcmp(token, "v") == 0) {
+            op.op = TEST_OP_CHECK_PIN;
+            op.repeat = repeat_flag;
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.pin = string_to_voltage_pin(token);
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg1 = atoi(token);
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg2 = atoi(token);
+            
+        } else if (strcmp(token, "reset") == 0) {
+            op.op = TEST_OP_RESET;
+            op.repeat = repeat_flag;
+            op.pin = 0;  // Not used for reset
+            op.arg1 = 0; // Not used for reset
+            op.arg2 = 0; // Not used for reset
+            
+        } else if (strcmp(token, "scope") == 0) {
+            op.op = TEST_OP_SCOPE;
+            op.repeat = repeat_flag;
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.pin = string_to_voltage_pin(token);
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg1 = atoi(token); // Sample frequency
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg2 = atoi(token); // Buffer size
+            
+        } else if (strcmp(token, "min") == 0) {
+            op.op = TEST_OP_CHECK_MIN;
+            op.repeat = repeat_flag;
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.pin = string_to_voltage_pin(token);
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg1 = atoi(token); // Low value
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg2 = atoi(token); // High value
+            
+        } else if (strcmp(token, "max") == 0) {
+            op.op = TEST_OP_CHECK_MAX;
+            op.repeat = repeat_flag;
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.pin = string_to_voltage_pin(token);
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg1 = atoi(token); // Low value
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg2 = atoi(token); // High value
+            
+        } else if (strcmp(token, "avg") == 0) {
+            op.op = TEST_OP_CHECK_AVG;
+            op.repeat = repeat_flag;
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.pin = string_to_voltage_pin(token);
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg1 = atoi(token); // Low value
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg2 = atoi(token); // High value
+            
+        } else if (strcmp(token, "freq") == 0) {
+            op.op = TEST_OP_CHECK_FREQ;
+            op.repeat = repeat_flag;
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.pin = string_to_voltage_pin(token);
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg1 = atoi(token); // Low value
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg2 = atoi(token); // High value
+            
+        } else if (strcmp(token, "amplitude") == 0) {
+            op.op = TEST_OP_CHECK_AMPLITUDE;
+            op.repeat = repeat_flag;
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.pin = string_to_voltage_pin(token);
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg1 = atoi(token); // Low value
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg2 = atoi(token); // High value
+            
+        } else if (strcmp(token, "delay") == 0) {
+            op.op = TEST_OP_DELAY;
+            op.repeat = repeat_flag;
+            
+            line_str = get_token(line_str, token, sizeof(token));
+            op.arg1 = atoi(token); // Timeout in milliseconds
+            op.pin = 0;  // Not used for delay
+            op.arg2 = 0; // Not used for delay
+            
+        } else {
+            ESP_LOGW(TAG, "Unknown operation: %s", token);
+            continue;
         }
+        
+        operation_index++;
+        current_module->test_operations_count++;
     }
     
     file.close();
     
-    ESP_LOGI(TAG, "Successfully loaded %zu modules with %zu total operations", 
-             modules_count, total_operations);
+    ESP_LOGI(TAG, "Successfully loaded module '%s' (ID: %zu) with %zu operations", 
+             current_module->name, current_module->id, current_module->test_operations_count);
     return true;
 }
 
-module_info_t* get_module_info(uint8_t id) {
+module_info_t* get_current_module_info() {
     if (!modules) {
         ESP_LOGE(TAG, "Modules not initialized");
         return nullptr;
     }
     
     for (size_t i = 0; i < modules_count; i++) {
-        if (modules[i].id == id) {
+        if (modules[i].id == current_module_index) {
             return &modules[i];
         }
     }
     
-    ESP_LOGW(TAG, "Module with ID %d not found", id);
+    ESP_LOGW(TAG, "Module with ID %d not found", current_module_index);
     return nullptr;
 }
 
@@ -422,7 +444,7 @@ bool execute_module_tests(module_info_t* module) {
 
 static bool execute_test_sequence(const test_operation_t* operations, size_t count, test_operation_result_t* results) {
     ESP_LOGD(TAG, "Executing test sequence with %zu operations", count);
-    
+
     for (size_t i = 0; i < count; i++) {
         ESP_LOGD(TAG, "Start of operation %d", i);
         const test_operation_t& op = operations[i];
@@ -447,7 +469,7 @@ static bool execute_test_sequence(const test_operation_t* operations, size_t cou
                     delay(10);
                 }
             } while (!result);
-            mcp1.digitalWrite(PIN_LED_FAIL, LOW);
+            // mcp1.digitalWrite(PIN_LED_FAIL, LOW);
         } else {
             uint32_t start_time = millis();
             result = execute_single_operation(op, &actual_result);

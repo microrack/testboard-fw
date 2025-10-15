@@ -48,19 +48,17 @@ void setup() {
         for(;;); // Don't proceed, loop forever
     }
 
-    // Get adapter ID and corresponding module info
-    uint8_t adapter_id = hal_adapter_id();
-    module = get_module_info(adapter_id);
+    module = get_current_module_info();
 
     if (!module) {
         ESP_LOGE(TAG, "Unknown module detected");
-        mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-        mcp1.digitalWrite(PIN_LED_OK, LOW);
+        // mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+        // mcp1.digitalWrite(PIN_LED_OK, LOW);
         for(;;);
     }
 
     allocate_test_results_arrays(module);
-
+ 
     // Initialize web server
     if (!init_webserver()) {
         ESP_LOGE(TAG, "Failed to initialize web server");
@@ -94,20 +92,20 @@ void loop() {
     ESP_LOGD(TAG, "Module detected: %s", module->name);
     display_printf("Module: %s", module->name);
 
-    mcp1.digitalWrite(PIN_LED_FAIL, LOW);
+    // mcp1.digitalWrite(PIN_LED_FAIL, LOW);
 
     bool test_result;
     do {
         test_result = execute_module_tests(module);
         if (test_result) {
             // Test passed
-            mcp1.digitalWrite(PIN_LED_OK, HIGH);
-            mcp1.digitalWrite(PIN_LED_FAIL, LOW);
+            // mcp1.digitalWrite(PIN_LED_OK, HIGH);
+            // mcp1.digitalWrite(PIN_LED_FAIL, LOW);
             display_printf("Module OK");
         } else {
             // Test failed
-            mcp1.digitalWrite(PIN_LED_OK, LOW);
-            mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+            // mcp1.digitalWrite(PIN_LED_OK, LOW);
+            // mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
             
             // Check if module is still present
             power_rails_state_t state = get_power_rails_state(NULL, NULL, NULL);
@@ -127,8 +125,8 @@ void loop() {
 
     execute_reset_operation();
 
-    mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-    mcp1.digitalWrite(PIN_LED_OK, LOW);
+    // mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
+    // mcp1.digitalWrite(PIN_LED_OK, LOW);
     display_printf("Module ejected");
 
     delay(100);
