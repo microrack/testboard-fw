@@ -13,8 +13,32 @@
 # alias trig_1=out B
 # alias trig_2=2
 # # setup
-reset
-# # check current
-i +12 0 50000
-i +5 0 50000
-i -12 0 50000
+reset 
+i +12 8000 11000
+i +5 10000 15000
+i -12 5000 7000
+# # check level pot position
+reset 
+src C 1000
+v pdA 0 30
+# # check depth pot position
+reset 
+src D 2000
+v pdB 490 650
+# skip LPG/comb mode check
+# # main check
+reset 
+src_sig A 200
+delay 100
+# no CV, check for no signal
+scope A 20000 512
+amplitude A 0 200
+delay 100
+# add CV, check for signal
+src D -3000
+scope A 20000 512
+amplitude A 2300 2800
+# add IO, check signal drop
+io 4 h
+scope A 20000 512
+amplitude A 0 200
