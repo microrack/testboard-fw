@@ -14,8 +14,27 @@
 # alias signal_a=4
 # alias signal_b=5
 # # setup
-reset
+reset 
 # # check current
-i +12 0 50000
-i +5 0 50000
-i -12 0 50000
+i +12 10000 20000
+i +5 5000 10000
+i -12 5000 10000
+iolevel 0 l
+iolevel 1 l
+src A 2000
+src B 2000
+v A 1000 6000
+v B 1000 6000
+v C 1000 6000
+v D 1000 6000
+v E 1000 6000
+v F 1000 6000
+i +5 20000 30000
+src A -5000
+src B -5000
+v A -6000 -1000
+v B -6000 -1000
+v C -6000 -1000
+v D -6000 -1000
+v E -6000 -1000
+v F -6000 -1000
