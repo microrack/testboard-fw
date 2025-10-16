@@ -1172,6 +1172,15 @@
 
         function generateModuleText(module) {
             let text = '';
+            
+            // Add aliases first
+            module.aliases.forEach(alias => {
+                if (alias.name && alias.pin) {
+                    text += `# alias ${alias.name}=${alias.pin}\n`;
+                }
+            });
+            
+            // Add operations
             module.operations.forEach(op => {
                 if (op.type === 'comment') {
                     text += `# ${op.text}\n`;
@@ -1198,19 +1207,10 @@
         function generateConfigText() {
             let text = '';
             currentConfig.modules.forEach(module => {
-                text += `module ${module.name} ${module.id}\n`;
-                
-                // Add aliases
-                module.aliases.forEach(alias => {
-                    if (alias.name && alias.pin) {
-                        text += `# alias ${alias.name}=${alias.pin}\n`;
-                    }
-                });
-                
                 text += generateModuleText(module);
                 text += "\n";
             });
-            return text;
+            return text.trim(); // Remove trailing newline
         }
         
         function autoResizeTextarea(textarea) {
