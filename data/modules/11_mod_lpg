@@ -29,7 +29,7 @@ v pdB 400 650
 # # main check
 reset 
 src_sig A 200
-delay 100
+delay 1000
 # no CV, check for no signal
 scope A 20000 512
 amplitude A 0 200
