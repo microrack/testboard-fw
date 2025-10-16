@@ -24,7 +24,7 @@ v pdA 0 30
 # # check depth pot position
 reset 
 src D 2000
-v pdB 490 650
+v pdB 400 650
 # skip LPG/comb mode check
 # # main check
 reset 
