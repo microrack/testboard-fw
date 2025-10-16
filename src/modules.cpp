@@ -16,7 +16,7 @@ static size_t current_module_index = 0;
 static test_operation_t* operations_buffer = nullptr;
 static size_t operations_buffer_size = 0;
 
-static bool execute_test_sequence(const test_operation_t* operations, size_t count, test_operation_result_t* results);
+static bool execute_test_sequence(const test_operation_t* operations, size_t count, test_operation_result_t* results, int loop_start, int loop_end);
 static bool execute_single_operation(const test_operation_t& op, int32_t* result);
 
 // Helper function to convert string to source_net_t
@@ -181,6 +181,8 @@ bool init_modules_from_fs() {
     current_module->test_operations = operations_buffer;
     current_module->test_operations_count = 0;
     current_module->test_results = nullptr; // Will be allocated when needed
+    current_module->loop_start = -1;
+    current_module->loop_end = -1;
     
     // Second pass: parse operations
     file.seek(0);
@@ -209,7 +211,19 @@ bool init_modules_from_fs() {
         
         line_str = get_token(line_str, token, sizeof(token));
         
-        if (strcmp(token, "src") == 0) {
+        if (strcmp(token, "{") == 0) {
+            // Loop start marker
+            current_module->loop_start = operation_index;
+            ESP_LOGI(TAG, "Loop start at operation %zu", operation_index);
+            continue;
+            
+        } else if (strcmp(token, "}") == 0) {
+            // Loop end marker
+            current_module->loop_end = operation_index - 1;
+            ESP_LOGI(TAG, "Loop end at operation %zu", operation_index - 1);
+            continue;
+            
+        } else if (strcmp(token, "src") == 0) {
             op.op = TEST_OP_SOURCE;
             op.repeat = repeat_flag;
             
@@ -443,7 +457,7 @@ bool execute_module_tests(module_info_t* module) {
             return false;
         }
         
-        bool success = execute_test_sequence(module->test_operations, module->test_operations_count, global_results);
+        bool success = execute_test_sequence(module->test_operations, module->test_operations_count, global_results, module->loop_start, module->loop_end);
 
         ESP_LOGI(TAG, "=== Test %s results for module: %s ===", success ? "PASSED" : "FAILED", module->name);
         
@@ -454,10 +468,96 @@ bool execute_module_tests(module_info_t* module) {
     return false;
 }
 
-static bool execute_test_sequence(const test_operation_t* operations, size_t count, test_operation_result_t* results) {
-    ESP_LOGD(TAG, "Executing test sequence with %zu operations", count);
+static bool execute_test_sequence(const test_operation_t* operations, size_t count, test_operation_result_t* results, int loop_start, int loop_end) {
+    ESP_LOGD(TAG, "Executing test sequence with %zu operations (loop: %d to %d)", count, loop_start, loop_end);
 
-    for (size_t i = 0; i < count; i++) {
+    // Determine the range of operations to execute
+    size_t before_loop_end = (loop_start >= 0) ? loop_start : count;
+    size_t after_loop_start = (loop_end >= 0) ? loop_end + 1 : count;
+    
+    // Execute operations before the loop
+    for (size_t i = 0; i < before_loop_end; i++) {
+        ESP_LOGD(TAG, "Start of operation %d", i);
+        const test_operation_t& op = operations[i];
+        bool result = false;
+        int32_t actual_result = 0;
+        
+        // Handle repeatable operations using TEST_RUN_REPEAT logic
+        if (op.repeat) {
+            do {
+                uint32_t start_time = millis();
+                result = execute_single_operation(op, &actual_result);
+                results[i].execution_time_ms = millis() - start_time;
+                if(!results[i].passed) {
+                    results[i].passed = result;
+                    results[i].result = actual_result;
+                }
+                if (!result) {
+                    if (get_power_rails_state(NULL, NULL, NULL) != POWER_RAILS_ALL) {
+                        ESP_LOGD(TAG, "Power rails disconnected during repeatable operation");
+                        return false;
+                    }
+                    delay(10);
+                }
+            } while (!result);
+        } else {
+            uint32_t start_time = millis();
+            result = execute_single_operation(op, &actual_result);
+            results[i].execution_time_ms = millis() - start_time;
+            if(!results[i].passed) {
+                results[i].passed = result;
+                results[i].result = actual_result;
+            }
+            if (!result) {
+                return false;
+            }
+        }
+        
+        // Small delay between operations
+        delay(1);
+    }
+    
+    // Execute loop operations indefinitely if loop is defined
+    if (loop_start >= 0 && loop_end >= 0 && loop_start <= loop_end) {
+        ESP_LOGI(TAG, "Entering infinite loop: operations %d to %d", loop_start, loop_end);
+        
+        while (true) {
+            // Check if module is still connected
+            if (get_power_rails_state(NULL, NULL, NULL) != POWER_RAILS_ALL) {
+                ESP_LOGI(TAG, "Module removed, exiting loop");
+                return false;
+            }
+            
+            // Execute operations in the loop
+            for (size_t i = loop_start; i <= (size_t)loop_end; i++) {
+                ESP_LOGD(TAG, "Loop: executing operation %d", i);
+                const test_operation_t& op = operations[i];
+                bool result = false;
+                int32_t actual_result = 0;
+                
+                // For loop operations, always continue regardless of result
+                uint32_t start_time = millis();
+                result = execute_single_operation(op, &actual_result);
+                results[i].execution_time_ms = millis() - start_time;
+                if(!results[i].passed) {
+                    results[i].passed = result;
+                    results[i].result = actual_result;
+                }
+                
+                // Check module connection after each operation
+                if (get_power_rails_state(NULL, NULL, NULL) != POWER_RAILS_ALL) {
+                    ESP_LOGI(TAG, "Module removed during loop, exiting");
+                    return false;
+                }
+                
+                // Small delay between operations
+                delay(1);
+            }
+        }
+    }
+    
+    // Execute operations after the loop (if any)
+    for (size_t i = after_loop_start; i < count; i++) {
         ESP_LOGD(TAG, "Start of operation %d", i);
         const test_operation_t& op = operations[i];
         bool result = false;

@@ -48,6 +48,8 @@ typedef struct {
     const test_operation_t* test_operations;  // Array of test operations
     size_t test_operations_count;        // Number of test operations
     test_operation_result_t* test_results;         // Array of test results (same size as test_operations)
+    int loop_start;                      // Index of first operation in loop, or -1 if no loop
+    int loop_end;                        // Index of last operation in loop, or -1 if no loop
 } module_info_t;
 
 // Initialize modules from filesystem

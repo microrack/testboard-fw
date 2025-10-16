@@ -248,6 +248,12 @@
             color: #ffffff;
         }
         
+        .operation-line.loop-marker {
+            background-color: #e3f2fd !important;
+            border-left: 4px solid #2196F3;
+            font-weight: bold;
+        }
+        
         .operation-line.comment-section .line-number {
             color: #ffffff;
         }
@@ -543,6 +549,8 @@
             'amplitude': { name: 'Check Amplitude', params: ['pin', 'low', 'high'] },
             'delay': { name: 'Delay', params: ['timeout_ms'] },
             'reset': { name: 'Reset', params: [] },
+            '{': { name: 'Loop Start {', params: [] },
+            '}': { name: 'Loop End }', params: [] },
             'comment': { name: 'Comment', params: [] }
         };
         
@@ -996,10 +1004,15 @@
             const lineNumber = opIndex + 1;
             let paramsHtml = '';
             let isSectionComment = false;
+            let isLoopMarker = false;
             
             if (operation.type === 'comment') {
                 isSectionComment = operation.text && operation.text.startsWith('#');
                 paramsHtml = `<input type="text" class="param-input" value="${operation.text || ''}" onchange="updateOperationParam(${moduleIndex}, ${opIndex}, 0, this.value)" placeholder="Comment text">`;
+            } else if (operation.type === '{' || operation.type === '}') {
+                // Loop markers have no parameters
+                isLoopMarker = true;
+                paramsHtml = '';
             } else {
                 const opType = operationTypes[operation.type];
                 if (opType) {
@@ -1068,7 +1081,7 @@
             }
 
             return `
-                <div class="operation-line${isSectionComment ? ' comment-section' : ''}">
+                <div class="operation-line${isSectionComment ? ' comment-section' : ''}${isLoopMarker ? ' loop-marker' : ''}">
                     <div class="line-actions">
                         <button class="btn btn-danger btn-small" onclick="removeOperation(${moduleIndex}, ${opIndex})">Remove</button>
                         <button class="btn btn-primary btn-small" onclick="insertOperation(${moduleIndex}, ${opIndex})">Insert</button>
@@ -1083,8 +1096,8 @@
                     </div>
                     <div class="operation-params">
                         ${paramsHtml}
-                        ${operation.type !== 'comment' ? `<input type="checkbox" class="repeat-checkbox" ${operation.repeat ? 'checked' : ''} onchange="updateOperationRepeat(${moduleIndex}, ${opIndex}, this.checked)">` : ''}
-                        ${operation.type !== 'comment' ? '<span>Repeat</span>' : ''}
+                        ${operation.type !== 'comment' && operation.type !== '{' && operation.type !== '}' ? `<input type="checkbox" class="repeat-checkbox" ${operation.repeat ? 'checked' : ''} onchange="updateOperationRepeat(${moduleIndex}, ${opIndex}, this.checked)">` : ''}
+                        ${operation.type !== 'comment' && operation.type !== '{' && operation.type !== '}' ? '<span>Repeat</span>' : ''}
                         ${getTestResultHtml(moduleIndex, opIndex)}
                     </div>
                 </div>
@@ -1184,6 +1197,9 @@
             module.operations.forEach(op => {
                 if (op.type === 'comment') {
                     text += `# ${op.text}\n`;
+                } else if (op.type === '{' || op.type === '}') {
+                    // Loop markers have no parameters
+                    text += op.type + '\n';
                 } else {
                     text += op.type;
                     if (op.params) {
@@ -1403,19 +1419,19 @@
                 return '';
             }
             
-            // Count only non-comment operations up to this index
+            // Count only non-comment and non-loop-marker operations up to this index
             let realOperationIndex = 0;
             for (let i = 0; i < opIndex; i++) {
-                if (module.operations[i] && module.operations[i].type !== 'comment') {
+                if (module.operations[i] && module.operations[i].type !== 'comment' && module.operations[i].type !== '{' && module.operations[i].type !== '}') {
                     realOperationIndex++;
                 }
             }
             console.log('[DEBUG] realOperationIndex:', realOperationIndex);
             
-            // Check if current operation is a comment
-            if (module.operations[opIndex] && module.operations[opIndex].type === 'comment') {
-                console.log('[DEBUG] Current operation is a comment, no result to show');
-                return ''; // Don't show results for comments
+            // Check if current operation is a comment or loop marker
+            if (module.operations[opIndex] && (module.operations[opIndex].type === 'comment' || module.operations[opIndex].type === '{' || module.operations[opIndex].type === '}')) {
+                console.log('[DEBUG] Current operation is a comment or loop marker, no result to show');
+                return ''; // Don't show results for comments and loop markers
             }
             
             // Get the result for this real operation
