@@ -7,9 +7,20 @@
 # alias track_1=out A
 # alias track_2=in pdA
 # alias track_pad=0
+# alias blue_a=in A
+# alias blue_b=in B
+# alias pink_a=in C
+# alias pink_b=in D
 # # setup
 reset
 # # check current
-i +12 0 50000
-i +5 0 50000
-i -12 0 50000
+i +12 20000 65000
+i +5 0 1000
+i -12 10000 35000
+# # check noise voltages
+scope A 20000 512
+amplitude A 4000 10000
+scope B 20000 512
+amplitude B 4000 10000
+v C -6000 -4000
+v D -6000 -4000
