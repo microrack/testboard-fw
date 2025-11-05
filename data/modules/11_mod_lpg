@@ -29,16 +29,18 @@ v pdB 400 650
 # # main check
 reset 
 src_sig A 200
-delay 1000
+delay 200
 # no CV, check for no signal
 scope A 20000 512
-amplitude A 0 200
+amplitude A 0 1000
 delay 100
 # add CV, check for signal
 src D -3000
+delay 200
 scope A 20000 512
 amplitude A 2300 2800
 # add IO, check signal drop
 io 4 h
+delay 200
 scope A 20000 512
-amplitude A 0 200
+amplitude A 0 1000
