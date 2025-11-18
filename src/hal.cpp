@@ -18,6 +18,7 @@ Adafruit_MCP23X17 mcp1;  // addr 0x21
 static IRAM_ATTR uint32_t signal_frequencies[SOURCE_COUNT] = {0, 0, 0, 0};
 static bool signal_generator_active[SOURCE_COUNT] = {false, false, false, false};
 static uint32_t signal_phase[SOURCE_COUNT] = {0, 0, 0, 0};
+static IRAM_ATTR waveform_type_t signal_waveform[SOURCE_COUNT] = {WAVEFORM_SINE, WAVEFORM_SINE, WAVEFORM_SINE, WAVEFORM_SINE};
 
 // Sine wave lookup table (256 points for one period)
 static uint16_t sine_table[256];
@@ -57,8 +58,37 @@ void init_sine_table() {
 void IRAM_ATTR signal_generator_callback() {
     for (int i = 0; i < SOURCE_COUNT; i++) {
         if (signal_frequencies[i] > 0) {
-            // Get DAC value from sine table
-            uint16_t dac_value = sine_table[(signal_phase[i] / 128) & 0xFF];
+            uint16_t dac_value;
+            
+            // Generate waveform based on type
+            switch (signal_waveform[i]) {
+                case WAVEFORM_SINE:
+                    // Get DAC value from sine table
+                    dac_value = sine_table[(signal_phase[i] / 128) & 0xFF];
+                    break;
+                    
+                case WAVEFORM_SAWTOOTH: {
+                    // Calculate sawtooth from phase
+                    // Phase range: 0 to 32768 (one period)
+                    // Convert to DAC value: 0 to 65535
+                    uint32_t phase_normalized = signal_phase[i] & 0x7FFF; // Mask to 15 bits (0-32767)
+                    dac_value = (uint16_t)((phase_normalized * 65535UL) / 32768UL);
+                    break;
+                }
+                
+                case WAVEFORM_SQUARE: {
+                    // Calculate square wave from phase
+                    // Phase range: 0 to 32768 (one period)
+                    // First half (0-16383): high, second half (16384-32767): low
+                    uint32_t phase_normalized = signal_phase[i] & 0x7FFF; // Mask to 15 bits (0-32767)
+                    dac_value = (phase_normalized < 16384) ? 65535 : 0;
+                    break;
+                }
+                
+                default:
+                    dac_value = sine_table[(signal_phase[i] / 128) & 0xFF];
+                    break;
+            }
             
             // Set DAC value directly
             hal_set_source_direct((source_net_t)i, dac_value);
@@ -118,6 +148,7 @@ void hal_init() {
         signal_frequencies[i] = 0;
         signal_generator_active[i] = false;
         signal_phase[i] = 0;
+        signal_waveform[i] = WAVEFORM_SINE;
     }
 
     // Initialize sine wave lookup table
@@ -430,7 +461,7 @@ void hal_print_current(void) {
              current_12v_ma, current_5v_ma, current_m12v_ma);
 }
 
-void hal_start_signal(source_net_t pin, float freq) {
+void hal_start_signal(source_net_t pin, float freq, waveform_type_t waveform) {
     if (pin >= SOURCE_COUNT) {
         ESP_LOGE(TAG, "Invalid source pin: %d", pin);
         return;
@@ -448,13 +479,17 @@ void hal_start_signal(source_net_t pin, float freq) {
     
     signal_frequencies[pin] = phase_increment;
     signal_phase[pin] = 0; // Reset phase
+    signal_waveform[pin] = waveform;
 
     if (!signal_timer_running) {
         timerStart(signal_timer);
         signal_timer_running = true;
     }
     
-    ESP_LOGD(TAG, "Signal generator on source %d started with frequency %f Hz (phase increment: %d)", pin, freq, phase_increment);
+    const char* waveform_name = (waveform == WAVEFORM_SINE) ? "sine" : 
+                                (waveform == WAVEFORM_SAWTOOTH) ? "sawtooth" : "square";
+    ESP_LOGD(TAG, "Signal generator on source %d started with frequency %f Hz, waveform %s (phase increment: %d)", 
+             pin, freq, waveform_name, phase_increment);
 }
 
 void hal_stop_signal(source_net_t pin) {

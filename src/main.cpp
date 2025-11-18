@@ -16,21 +16,100 @@
 #include "webserver.h"
 #include "test_results.h"
 
+
+
 static const char* TAG = "main";
+
+// Module descriptor structure
+struct module_descriptor {
+    const char* name;
+    void (*init)();
+    void (*handler)();
+};
+
+// Module descriptors array (max index is 28)
+#define MODULES_COUNT 29
+module_descriptor* modules[MODULES_COUNT] = {nullptr};
+
+#include "modules/mod_empty_test.h"
+#include "modules/mod_clk.h"
+#include "modules/mod_comp.h"
+#include "modules/mod_sat.h"
+#include "modules/mod_env.h"
+#include "modules/mod_eq.h"
+#include "modules/mod_esp32.h"
+#include "modules/mod_in_63.h"
+#include "modules/mod_jacket.h"
+#include "modules/mod_mix.h"
+#include "modules/mod_lpg.h"
+#include "modules/mod_key.h"
+#include "modules/mod_noise.h"
+#include "modules/mod_out_x.h"
+#include "modules/mod_seq.h"
+#include "modules/mod_vcf.h"
+#include "modules/mod_vco.h"
+#include "modules/mod_delay.h"
+
+/*
+    {.name = "empty-test"},  // 0
+    {.name = "mod-clk"},     // 1
+    {.name = "mod-comp"},    // 2
+    {.name = nullptr},       // 3 (not used)
+    {.name = "mod-sat"},     // 4
+    {.name = "mod-env"},     // 5
+    {.name = "mod-eq"},      // 6
+    {.name = "mod-esp32"},   // 7
+    {.name = "mod-in-63"},   // 8
+    {.name = "mod-jacket"},  // 9
+    {.name = "mod-mix"},     // 10
+    {.name = "mod-lpg"},     // 11
+    {.name = "mod-key"},     // 12
+    {.name = "mod-noise"},   // 13
+    {.name = "mod-out-x"},   // 14
+    {.name = "mod-seq"},     // 15
+    {.name = "mod-vcf"},     // 16
+    {.name = "mod-vco"},     // 17
+    {.name = nullptr},       // 18 (not used)
+    {.name = nullptr},       // 19 (not used)
+    {.name = nullptr},       // 20 (not used)
+    {.name = nullptr},       // 21 (not used)
+    {.name = nullptr},       // 22 (not used)
+    {.name = nullptr},       // 23 (not used)
+    {.name = nullptr},       // 24 (not used)
+    {.name = nullptr},       // 25 (not used)
+    {.name = nullptr},       // 26 (not used)
+    {.name = nullptr},       // 27 (not used)
+    {.name = "mod-delay"},   // 28
+};
+*/
 
 // External objects from hal.cpp
 extern DAC8552 dac1;
 extern DAC8552 dac2;
 
-// PD state variables
-static bool pd_state_a = false;
-static bool pd_state_b = false;
-static bool pd_state_c = false;
-
-// Global module info
-static module_info_t* module = nullptr;
+const module_descriptor* module = nullptr;
 
 void setup() {
+    // Assign module descriptors
+    modules[MOD_EMPTY_TEST_ID] = &mod_empty_test;
+    modules[MOD_CLK_ID] = &mod_clk;
+    modules[MOD_COMP_ID] = &mod_comp;
+    modules[MOD_SAT_ID] = &mod_sat;
+    modules[MOD_ENV_ID] = &mod_env;
+    modules[MOD_EQ_ID] = &mod_eq;
+    modules[MOD_ESP32_ID] = &mod_esp32;
+    modules[MOD_IN_63_ID] = &mod_in_63;
+    modules[MOD_JACKET_ID] = &mod_jacket;
+    modules[MOD_MIX_ID] = &mod_mix;
+    modules[MOD_LPG_ID] = &mod_lpg;
+    modules[MOD_KEY_ID] = &mod_key;
+    modules[MOD_NOISE_ID] = &mod_noise;
+    modules[MOD_OUT_X_ID] = &mod_out_x;
+    modules[MOD_SEQ_ID] = &mod_seq;
+    modules[MOD_VCF_ID] = &mod_vcf;
+    modules[MOD_VCO_ID] = &mod_vco;
+    modules[MOD_DELAY_ID] = &mod_delay;
+
     // Initialize hardware abstraction layer
     hal_init();
 
@@ -42,99 +121,29 @@ void setup() {
 
     ESP_LOGI(TAG, "Hello, Microrack!");
 
-    // Perform startup sequence
-    if (!perform_startup_sequence()) {
-        ESP_LOGE(TAG, "Startup sequence failed");
+    uint8_t adapter_id = hal_adapter_id();
+
+    if (adapter_id >= MODULES_COUNT || modules[adapter_id] == nullptr || modules[adapter_id]->name == nullptr) {
+        ESP_LOGE(TAG, "Invalid adapter ID: %d", adapter_id);
+        display_printf("Invalid adapter ID: %d", adapter_id);
         for(;;); // Don't proceed, loop forever
     }
 
-    module = get_current_module_info();
+    module = modules[adapter_id];
 
-    if (!module) {
-        ESP_LOGE(TAG, "Unknown module detected");
-        for(;;);
-    }
+    display_printf("Module: %s", module->name);
+    ESP_LOGI(TAG, "Module: %s", module->name);
 
-    allocate_test_results_arrays(module);
- 
-    // Initialize web server
-    if (!init_webserver()) {
-        ESP_LOGE(TAG, "Failed to initialize web server");
-        for(;;); // Don't proceed, loop forever
+    hal_current_calibrate();
+    hal_adc_calibrate();
+
+    if(module && module->init) {
+        module->init();
     }
 }
 
 void loop() {
-    if (load_wifi_credentials()) {
-        if (!connect_to_wifi()) {
-            ESP_LOGW(TAG, "Failed to reconnect to WiFi, starting AP mode");
-            enable_wifi();
-        }
-    } else {
-        ESP_LOGW(TAG, "No WiFi credentials found, starting AP mode");
-        enable_wifi();
-    }
-
-    display_printf("Waiting for module...");
-    // mcp1.digitalWrite(PIN_LED_OK, HIGH);
-    // mcp1.digitalWrite(PIN_LED_FAIL, HIGH);
-
-    bool p12v_ok, p5v_ok, m12v_ok;
-    
-    wait_for_module_insertion(p12v_ok, p5v_ok, m12v_ok);
-    
-    // Reset all test results after module insertion
-    reset_all_test_results();
-
-    // Disable WiFi before testing
-    disable_wifi();
-    
-    ESP_LOGD(TAG, "Module detected: %s", module->name);
-    display_printf("Module: %s", module->name);
-
-    bool test_result;
-    do {
-        test_result = execute_module_tests(module);
-        if (test_result) {
-            display_printf("Module OK");
-        } else {            
-            // Check if module is still present
-            power_rails_state_t state = get_power_rails_state(NULL, NULL, NULL);
-            if (state == POWER_RAILS_NONE) {
-                break; // Module was removed, exit the loop
-            }
-            
-            // Short delay before retrying
-            delay(50);
-        }
-
-        display_all_test_results();
-    } while (!test_result);
-
-    // Step 6.3: Wait for module removal
-    wait_for_module_removal(p12v_ok, p5v_ok, m12v_ok);
-
-    execute_reset_operation();
-
-    display_printf("Module ejected");
-
-    delay(100);
-
-    bool keep_removed = true;
-
-    // check every 10 ms
-    // if module stay removed during 100 ms, print test results
-    for (int i = 0; i < 10; i++) {
-        if (get_power_rails_state(NULL, NULL, NULL) == POWER_RAILS_NONE) {
-            delay(10);
-        } else {
-            keep_removed = false;
-            break;
-        }
-    }
-
-    if (keep_removed) {
-        print_all_test_results();
-        save_all_test_results();
+    if(module && module->handler) {
+        module->handler();
     }
 }
