@@ -14,11 +14,12 @@
 // alias speed_mode=3
 
 void mod_comp_init() {
-    
+    hal_start_signal(SOURCE_C, 140.0f, WAVEFORM_SAWTOOTH);
 }
 
 void mod_comp_handler() {
-    
+    hal_start_signal(SOURCE_A, 140.0f, WAVEFORM_SAWTOOTH); delay(100); hal_stop_signal(SOURCE_A); delay(300);
+    hal_start_signal(SOURCE_B, 140.0f, WAVEFORM_SAWTOOTH); delay(100); hal_stop_signal(SOURCE_B); delay(300);
 }
 
 #define MOD_COMP_ID 2
