@@ -14,11 +14,18 @@
 // alias pink_b=in D
 
 void mod_noise_init() {
-    
+    hal_set_io(IO0, IO_INPUT);
+    hal_set_source(SOURCE_A, 0);
+    hal_set_source(SOURCE_B, 0);
+    hal_set_source(SOURCE_C, 0);
+    hal_set_source(SOURCE_D, 0);
+
+    hal_start_signal(SOURCE_C, 1.0f, WAVEFORM_SAWTOOTH);
 }
 
 void mod_noise_handler() {
-    
+    hal_set_source(SOURCE_A, 5000); delay(10); hal_set_source(SOURCE_A, 0); delay(100);
+    hal_set_source(SOURCE_B, 5000); delay(10); hal_set_source(SOURCE_B, 0); delay(100);
 }
 
 #define MOD_NOISE_ID 13
