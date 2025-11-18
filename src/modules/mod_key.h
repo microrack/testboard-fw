@@ -1,0 +1,37 @@
+// Aliases from data/modules/12_mod_key:
+// alias cv_1=in C
+// alias cv_2=in D
+// alias gate_1=in E
+// alias gate_2=in F
+// alias notes_a_1=0
+// alias notes_a_10=9
+// alias notes_a_2=1
+// alias notes_a_3=2
+// alias notes_a_4=3
+// alias notes_a_5=4
+// alias notes_a_6=5
+// alias notes_a_7=6
+// alias notes_a_8=7
+// alias notes_a_9=8
+// alias notes_b_1=10
+// alias notes_b_2=11
+// alias notes_b_3=12
+// alias p5_1=in A
+// alias p5_2=in B
+
+void mod_key_init() {
+    
+}
+
+void mod_key_handler() {
+    
+}
+
+#define MOD_KEY_ID 12
+
+module_descriptor mod_key = {
+    .name = "mod-key",
+    .init = mod_key_init,
+    .handler = mod_key_handler,
+};
+
