@@ -32,11 +32,37 @@
 // alias steps_4=11
 
 void mod_seq_init() {
-    
+    hal_set_io(IO0, IO_INPUT);
+    hal_set_io(IO1, IO_INPUT);
+    hal_set_io(IO2, IO_INPUT);
+    hal_set_io(IO3, IO_INPUT);
+
+    hal_set_io(IO9, IO_INPUT);
+    hal_set_io(IO10, IO_INPUT);
+
+    hal_set_source(SOURCE_A, 0);
+    hal_set_source(SOURCE_B, 0);
 }
 
+const int SEQ_TIME = 40;
+
 void mod_seq_handler() {
-    
+    hal_set_io(IO0, IO_INPUT);
+    hal_set_source(SOURCE_A, -2000); delay(100); hal_set_source(SOURCE_A, 5000); delay(400);
+    hal_set_source(SOURCE_B, -2000); delay(100); hal_set_source(SOURCE_B, 5000); delay(400);
+
+    for(size_t i = 0; i < 8; i++) {
+        hal_set_io(IO0, IO_HIGH); delay(40); hal_set_io(IO0, IO_LOW); delay(40);
+    }
+
+    hal_set_io(IO0, IO_HIGH); delayMicroseconds(SEQ_TIME); hal_set_io(IO0, IO_LOW); delayMicroseconds(SEQ_TIME);
+    hal_set_io(IO1, IO_HIGH); delayMicroseconds(SEQ_TIME); hal_set_io(IO1, IO_LOW); delayMicroseconds(SEQ_TIME);
+
+    hal_set_io(IO0, IO_HIGH); delayMicroseconds(SEQ_TIME); hal_set_io(IO0, IO_LOW); delayMicroseconds(SEQ_TIME);
+    hal_set_io(IO3, IO_HIGH); delayMicroseconds(SEQ_TIME); hal_set_io(IO3, IO_LOW); delayMicroseconds(SEQ_TIME);
+
+    hal_set_io(IO0, IO_HIGH); delayMicroseconds(SEQ_TIME); hal_set_io(IO0, IO_LOW); delayMicroseconds(SEQ_TIME);
+    hal_set_io(IO9, IO_HIGH); delayMicroseconds(SEQ_TIME); hal_set_io(IO9, IO_LOW); delayMicroseconds(SEQ_TIME);
 }
 
 #define MOD_SEQ_ID 15
