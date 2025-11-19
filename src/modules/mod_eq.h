@@ -10,7 +10,8 @@
 // alias output_cd_2=in D
 
 void mod_eq_init() {
-    
+    hal_start_signal(SOURCE_A, 140.0f, WAVEFORM_SAWTOOTH);
+    hal_start_signal(SOURCE_B, 140.0f * 3/4, WAVEFORM_SAWTOOTH);
 }
 
 void mod_eq_handler() {
