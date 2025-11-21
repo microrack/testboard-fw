@@ -22,11 +22,29 @@
 // alias uni_mode=4
 
 void mod_mix_init() {
-    
+    hal_start_signal(SOURCE_D, 200, WAVEFORM_SAWTOOTH);
+    hal_set_io(IO0, IO_INPUT);
+    hal_set_io(IO1, IO_INPUT);
+    hal_set_io(IO2, IO_INPUT);
+
+    hal_set_source(SOURCE_A, 0);
+    hal_set_source(SOURCE_B, 0);
+    hal_set_source(SOURCE_C, 0);
 }
 
 void mod_mix_handler() {
-    
+    hal_set_source(SOURCE_A, 5000); delay(50);
+    hal_set_source(SOURCE_A, -5000); delay(50);
+    hal_set_source(SOURCE_A, 0); delay(50);
+
+    hal_set_source(SOURCE_B, 5000); delay(50);
+    hal_set_source(SOURCE_B, -5000); delay(50);
+    hal_set_source(SOURCE_B, 0); delay(50);
+
+
+    hal_set_source(SOURCE_C, 5000); delay(50);
+    hal_set_source(SOURCE_C, -5000); delay(50);
+    hal_set_source(SOURCE_C, 0); delay(50);
 }
 
 #define MOD_MIX_ID 10
