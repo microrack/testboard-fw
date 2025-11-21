@@ -18,11 +18,15 @@
 // alias mode=10
 
 void mod_out_x_init() {
-    
+    hal_start_signal(SOURCE_A, 140.0f, WAVEFORM_SAWTOOTH);
+    hal_start_signal(SOURCE_B, 140.0f * 3/4, WAVEFORM_SAWTOOTH);
 }
 
 void mod_out_x_handler() {
-    
+    hal_set_io(IO0, IO_HIGH); delay(1); hal_set_io(IO0, IO_LOW); delay(50);
+    hal_set_io(IO2, IO_HIGH); delay(1); hal_set_io(IO2, IO_LOW); delay(50);
+    hal_set_io(IO5, IO_HIGH); delay(1); hal_set_io(IO5, IO_LOW); delay(50);
+    hal_set_io(IO7, IO_HIGH); delay(1); hal_set_io(IO7, IO_LOW); delay(50);
 }
 
 #define MOD_OUT_X_ID 14
