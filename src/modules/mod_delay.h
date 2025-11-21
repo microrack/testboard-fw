@@ -16,14 +16,22 @@
 // alias time_pot=in pdC
 
 void mod_delay_init() {
-    
+    hal_set_io(IO2, IO_LOW);
 }
 
 void mod_delay_handler() {
+    hal_set_source(SOURCE_C, 5000);
+    hal_start_signal(SOURCE_A, 440, WAVEFORM_SQUARE); delay(30); hal_stop_signal(SOURCE_A); 
+    hal_set_source(SOURCE_C, 0);
+
+    delay(200);
     
+    hal_set_io(IO0, IO_HIGH); delay(2); hal_set_io(IO0, IO_LOW);
+    
+    delay(200);
 }
 
-#define MOD_DELAY_ID 28
+#define MOD_DELAY_ID 3
 
 module_descriptor mod_delay = {
     .name = "mod-delay",
